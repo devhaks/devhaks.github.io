@@ -40,6 +40,8 @@ AWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자�
 이번 실습에서는 CodeBuild 와 S3 를 이용한 정적 사이트 배포를 진행하도록 하겠습니다.
 <br/>
 
+
+
 ### 1. S3 bucket 생성하기
 
 1. [S3 console](https://s3.console.aws.amazon.com/s3/home?region=us-east-1) 에 접속하여 [버킷 생성] 버튼을 클릭합니다. 저는 미리 생성한 버킷을 사용하겠습니다. 리전은 `서울`로 선택하고 [등록] 버튼을 클릭합니다.
@@ -127,7 +129,7 @@ AWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자�
 
  ![](codebuild_5.png)
 
-    ~~~yml
+    ~~~yaml
     # buildspec.yml 파일입니다.
 
     version: 0.2
@@ -200,7 +202,7 @@ AWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자�
 
 1. github 로 부터 소스코드를 다운로드 받습니다.
 
-~~~json
+~~~bash
 [Container] 2019/02/28 11:14:39 Waiting for agent ping
 [Container] 2019/02/28 11:14:43 Waiting for DOWNLOAD_SOURCE
 [Container] 2019/02/28 11:14:44 Phase is DOWNLOAD_SOURCE
@@ -225,7 +227,7 @@ AWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자�
     npm install
   {% endhl_text %} 을 실행합니다. 
 
-~~~json
+~~~bash
 [Container] 2019/02/28 11:14:45 Entering phase INSTALL
 [Container] 2019/02/28 11:14:45 Running command npm install
 
@@ -252,8 +254,7 @@ found 0 vulnerabilities
     npm run lint
   {% endhl_text %} 을 실행합니다. 
 
-~~~json
-
+~~~bash
 [Container] 2019/02/28 11:15:08 Entering phase PRE_BUILD
 [Container] 2019/02/28 11:15:08 Running command npm run lint
 
@@ -275,8 +276,7 @@ DONE No lint errors found!
   {% endhl_text %} 을 실행합니다. 
 
 
-~~~json
-
+~~~bash
 [Container] 2019/02/28 11:15:09 Entering phase BUILD
 [Container] 2019/02/28 11:15:09 Running command npm run build
 
@@ -307,8 +307,7 @@ INFO Check out deployment instructions at https://cli.vuejs.org/guide/deployment
     aws s3 cp --recursive dist/ s3://devhaks-sample-s3
   {% endhl_text %} 을 실행합니다. 
 
-~~~json
-
+~~~bash
 [Container] 2019/02/28 11:15:18 Entering phase POST_BUILD
 [Container] 2019/02/28 11:15:18 Running command ls -al
 
