@@ -16,6 +16,13 @@
     <div class="header-title">
         <a class="header-title-link" href="<%- url_for(' ') %>"><%= config.title %></a>
     </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
     <% if (theme.header && theme.header.right_link) { %>
         <% if (theme.header.right_link.url && url_for(theme.header.right_link.url).indexOf(config.url) < 0 && url_for(theme.header.right_link.url).indexOf(':') >= 0) { %>
             <a  class="<%= (theme.header.right_link.icon ? 'header-right-icon ' : 'header-right-picture ') %><% if (theme.header.right_link.class) { %><%= theme.header.right_link.class %><% } %>"
@@ -32,3 +39,32 @@
         </a>
     <% } %>
 </header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>

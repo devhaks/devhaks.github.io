@@ -49,6 +49,7 @@
         right:    20px;
         color:    map-get($header, color);
     }
+
     .header-title {
         text-align:  center;
         font-size:   $font-size-base;
@@ -66,6 +67,7 @@
             }
         }
     }
+    
     // Class used to swipe to the top the header on small screen when the user scroll down
     &.header-up {
         @include prefix(transform, translate3d(0, -#{map-get($header, height)}, 0), 'webkit' 'moz');
