@@ -38,5 +38,16 @@
         <% } %>
         <%- partial('_partial/cover', null, {cache: !config.relative_link}) %>
         <%- partial('_partial/script', {post: page}) %>
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
     </body>
 </html>

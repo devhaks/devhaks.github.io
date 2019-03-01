@@ -43,7 +43,7 @@ future: true
 highlight:
   enable: false
   line_number: true
-  auto_detect: false
+  auto_detect: true
   # tab_replace:
 
 prism_plugin:
@@ -90,3 +90,7 @@ deploy:
   repo: git@github.com:devhaks/devhaks.github.io.git
   branch: master
 
+sitemap:
+  path: sitemap.xml
+  tag: false
+  category: false

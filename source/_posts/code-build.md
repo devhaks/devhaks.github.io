@@ -2,7 +2,8 @@
 title: AWS CodeBuild & S3 를 이용한 정적 사이트 구현
 date: 2019-02-16 22:47:00
 tags:
-  - ccc
+  - CodeDeploy
+  - S3
 categories:
   - AWS
 thumbnailImage: codedeploy.png
@@ -186,13 +187,13 @@ AWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자�
 
 ## 5. Build 과정 확인하기
 
-### CodeBuild 콘솔 확인
+### CodeBuild 콘솔
 
   ![](build_progressing.png)
   
   ![](build_process.png)
 
-### CodeBuild Log 확인
+### CodeBuild Log
 
 이 로그는 CodeBuild agent 가 buildspec.yml 사양 파일에 따른 모든 작업을 진행한 내용입니다.
 <br/>
@@ -358,6 +359,18 @@ upload: dist/js/chunk-vendors.50e9f258.js.map to s3://devhaks-sample-s3/js/chunk
 
 ~~~
 
+## 5. 정적 사이트 확인하기
+
+[S3 console](https://s3.console.aws.amazon.com/s3/home?region=ap-northeast-2) 로 이동하여 버킷의 url 주소를 확인합니다.
+
+![](s3_bucket_4.png)
+
+codeDeploy 가 성공되었으면 버킷에 파일들이 저장되어 있을 것이고 버킷 주소로 접속하면 다음과 같은 화면이 나올 것입니다.
+
+![](s3_result.png)
+
+
+----
 
 ## 참고 사항
 
