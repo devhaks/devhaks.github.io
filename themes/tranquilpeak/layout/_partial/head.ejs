@@ -144,6 +144,7 @@
     <% } else if (theme.author.picture) { %>
         <meta property="og:image" content="<%= resolve_asset_url(theme.image_dir, theme.author.picture) %>"/>
     <% } %>
+    
     <% if (page.thumbnailImage && page.thumbnailImage.length) { %>
         <meta property="og:image" content="<%= resolve_asset_url(page.path, page.thumbnailImage) %>"/>
         <meta class="swiftype" name="image" data-type="enum" content="<%= resolve_asset_url(page.path, page.thumbnailImage) %>" />

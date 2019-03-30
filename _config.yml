@@ -5,7 +5,7 @@
 # Site
 title: Devhaks 개발 저장소
 subtitle: 
-description:
+description: 
 author: 이종학
 language: 
   - en
@@ -94,3 +94,8 @@ sitemap:
   path: sitemap.xml
   tag: false
   category: false
+
+lazyload:
+  enable: false 
+  onlypost: true
+  loadingImg: # eg ./images/loading.gif
