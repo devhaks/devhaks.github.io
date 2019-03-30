@@ -9,12 +9,11 @@ categories:
   - AWS
 thumbnailImage: thumbnail.png
 thumbnailImagePosition: left
+autoThumbnailImage: yes
 coverSize: partial
-coverMeta: in
+coverMeta: out
 coverImage: cover.jpg
 ---
-
-<!-- ![사진제목](/images/1.png) -->
 
 이번 포스팅은 개발자들에게 자동화의 길에 한 발자국 가까워 지도록 AWS 에서 제공하는 서비스인 [CodeBuild](https://aws.amazon.com/ko/codebuild/) 에 대해서 소개합니다.
 

@@ -11,6 +11,7 @@ categories:
   - javascript
 thumbnailImage: thumbnail.png
 thumbnailImagePosition: left
+autoThumbnailImage: yes
 coverSize: full
 coverMeta: out
 coverImage: cover.png
@@ -23,6 +24,7 @@ coverImage: cover.png
 안녕하세요. 저는 현재 <b>기업 관리 통합 솔루션 [질링스](https://www.zillinks.com)</b>의 SW 리더로서 시스템 관리 및 백앤드 개발을 담당하고 있습니다. 최근 서비스에서 기업의 <u>뉴스 요약문</u>을 수집해야 하는 이슈가 생겼습니다. 그러면 어떠한 과정을 거쳐 뉴스 요약문을 수집 했는지에 대해 글을 써보도록 하겠습니다. 
 
 이 글은 단순히 기능 설명이 아닌 저의 경험 지식을 녹여내려 쓴 것이므로 내용이 많을 수 있습니다. 
+
 
 ---
 
@@ -226,10 +228,6 @@ $ sudo apt-get install libatspi-dev libatspi2.0-0 libgtk-3-0
 
 
 
-
-
-
-
 {% alert info %}
 Puppeteer를 설치하면 API가 작동하는 Chromium의 최신 버전 (~ 170MB Mac, ~ 282MB Linux, ~ 280MB Win)이 다운로드됩니다.
 {% endalert %}
@@ -396,8 +394,6 @@ const cheerio = require('cheerio');
 - [Page option](https://github.com/GoogleChrome/puppeteer/blob/v1.14.0/docs/api.md#pagegotourl-options)
 
 <br>
-{% image fancybox center clear crawl_news.png crawl_news.png 75% "실제 서비스 기능 화면" %}
-
 
 #### Tips
 
