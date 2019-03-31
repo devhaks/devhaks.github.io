@@ -68,6 +68,7 @@ coverImage: cover.png
 Get 요청에도 Case 가 다른 경우가 있습니다. 웹 사이트가 어떤 유형으로 만들어진 것인지에 따라 응답 결과가 다릅니다. 간단히 Static vs Dynamaic 2가지 유형으로 나눌 수 있습니다. 기술적인 이해를 돕고자 2가지 유형의 결과와 함께 설명하겠습니다.
 
 #### 1-1. 정적(Static) 사이트
+
 ```bash
 // linux cmd 에서 실행
 $ curl https://devhaks.github.io
@@ -142,26 +143,26 @@ $ curl https://www.mk.co.kr/news/it/view/2019/03/191946/
 ```html
 <!DOCTYPE html>
 <html lang="ko">
-    <head>
-        <title>[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���</title>
-        <meta http-equiv="Content-Type" content="text/html; charset=euc-kr">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <meta property="article:author" content="�ſ���"/>
-        <meta name="apple-mobile-web-app-title" content="mk"/>
-        <link rel='stylesheet' type='text/css' href='https://common.mk.co.kr/common/css/2015/news_2015.css'>
-        <link rel='stylesheet' type='text/css' href='https://common.mk.co.kr/common/css/2019/error.css'>
-        <link rel='shortcut icon' href='//img.mk.co.kr/main/2015/mk_new/favicon_new.ico'>
-        <link rel='canonical' href='https://www.mk.co.kr/news/it/view/2019/03/191946/'>
-        <link rel='amphtml' href='http://m.mk.co.kr/news/amp/headline/2019/191946?PageSpeed=off'>
-        <link rel='alternate' media='only screen and ( max-width: 640px)' href='http://m.mk.co.kr/news/it/2019/191946/'>
-        <meta name='title' content='[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���'>
-        <meta name='description' content='[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����?, �ۼ���-�ſ���, ����-it, ����-LG CNS�� ������ 12�� ��������(KorQuAD��The Korean Question Answering Dataset)������ ���� ù AI(�ΰ�����)�� ������ ������. �����ڵ��� �ڻ� AI ���α׷� �ɷ��� ���������� ������ �� �ֵ��� ��������. AI�� �����ڰ�'>
-        <meta name='classification' content='it'>
-        <meta property='article:published'  content='2019-03-29' />
-    </head>
-    <body>
-      ...(생략)
-    </body>
+  <head>
+    <title>[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=euc-kr">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta property="article:author" content="�ſ���"/>
+    <meta name="apple-mobile-web-app-title" content="mk"/>
+    <link rel='stylesheet' type='text/css' href='https://common.mk.co.kr/common/css/2015/news_2015.css'>
+    <link rel='stylesheet' type='text/css' href='https://common.mk.co.kr/common/css/2019/error.css'>
+    <link rel='shortcut icon' href='//img.mk.co.kr/main/2015/mk_new/favicon_new.ico'>
+    <link rel='canonical' href='https://www.mk.co.kr/news/it/view/2019/03/191946/'>
+    <link rel='amphtml' href='http://m.mk.co.kr/news/amp/headline/2019/191946?PageSpeed=off'>
+    <link rel='alternate' media='only screen and ( max-width: 640px)' href='http://m.mk.co.kr/news/it/2019/191946/'>
+    <meta name='title' content='[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���'>
+    <meta name='description' content='[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����?, �ۼ���-�ſ���, ����-it, ����-LG CNS�� ������ 12�� ��������(KorQuAD��The Korean Question Answering Dataset)������ ���� ù AI(�ΰ�����)�� ������ ������. �����ڵ��� �ڻ� AI ���α׷� �ɷ��� ���������� ������ �� �ֵ��� ��������. AI�� �����ڰ�'>
+    <meta name='classification' content='it'>
+    <meta property='article:published'  content='2019-03-29' />
+  </head>
+  <body>
+    ...(생략)
+  </body>
 </html>
 ```
 브라우저로 접속하면 한글로된 글이 보이지만, GET 요청 결과는 한글이 깨진 상태입니다. 
