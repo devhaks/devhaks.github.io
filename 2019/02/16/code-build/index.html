@@ -1,0 +1,731 @@
+
+<!DOCTYPE html>
+<html lang="en,default">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Devhaks 개발 저장소">
+    <title>[AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현 - Devhaks 개발 저장소</title>
+    <meta name="author" content="이종학">
+    
+    
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\nAWS의 일부 서비스에 대한 사용 요금이 추가 될 수 있음을 미리 알려 드립니다.\n\n소개CodeBuild 란 운영 서버에 소스코드를 배포(Deploy)하기 전에 코드에 대한 여러 작업들을 순차적으로 정의하여 진행하는 방식입니다. 여러 작업들은 코드 정리, 정적 분석, 유닛 테스트 등으로 구성 될 수 있습니다. \n여기서 여러 작업들을 순차적으로 진행하는 것은 굉장히 중요합니다. 예로 관리자가 Build 한다고 생각합시다. 과정의 작업이 2~3 정도면 실수 할 일이 거의 없지만, 작업이 10개 이상만 된다면 매번 순서를 체크해 가면서 빼먹지 않고 해야할 뿐더러 중간 과정이 1시간 정도 소요된다면, 하루를 Build 하는데에만 낭비할 것입니다. 컴퓨터가 아닌 이상 실수를 하지 않는 다고 보장 할 수 없습니다. 그렇기 때문에 순차적으로 진행하는 것은 중요한 것입니다.\nAWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자국 가까워 지도록 CodeBuild를 제공합니다. \n\n실습이번 실습에서는 CodeBuild 와 S3 를 이용한 정적 사이트 배포를 진행하도록 하겠습니다.\n1. S3 bucket 생성하기\nS3 console 에 접속하여 [버킷 생성] 버튼을 클릭합니다. 저는 미리 생성한 버킷을 사용하겠습니다. 리전은 서울로 선택하고 [등록] 버튼을 클릭합니다.\n\n\n생성한 버킷의 [속성]탭 이동합니다. 정적사이트 기능을 하도록 아래와 같이 입력 후, 저장 합니다.\n\n\n버킷의 접근에 대한 정책을 설정합니다. 정책을 설정하는 이유는 외부로 부터 사이트에 접속하여 볼 수 있도록 하기 위함 입니다. 여기서는 사용자들이 볼수만 있도록 Read 권한만 적용 하겠습니다. \n\n\n\nResource: 에서 devhaks-sample-s3 대신 여러분이 생성한 버킷 이름을 입력합니다.\n\n12345678910111213&#123;    \"Version\": \"2012-10-17\",    \"Id\": \"Policy1530611678296\",    \"Statement\": [        &#123;            \"Sid\": \"Stmt1530611670504\",            \"Effect\": \"Allow\",            \"Principal\": \"*\",            \"Action\": \"s3:GetObject\",            \"Resource\": \"arn:aws:s3:::devhaks-sample-s3/*\"        &#125;    ]&#125;\n\n\n2. CodeBuild 프로젝트 생성하기\nCodeBuild console 에 접속하여 우측 상단에 있는 [Create build project] 버튼을 클릭합니다.\n\nProject configuration\n\nProject name: 프로젝트의 이름\n\n\n\nSource\n\nSource provider: 소스코드를 어디서 받을지 선택합니다.\nRepository: 자신의 계정에 있는 저장소를 사용할 것이므로 https://github.com/devhaks/aws 를 fork 합니다. 참고로 저장소에 올린 프로젝트는 vue.js 입니다.\nGitHub repository: fork한 자신의 저장소를 선택합니다.\nBuild Status: 빌드에 대한 성공/실패 상태를 github 페이지에도 볼 수 있도록 설정합니다.\n\n\n\nPrimary source webhook events\n\nWebhook: 저장소에 코드 변경이 있을 때마다, Build 를 할 것인지에 대한 선택사항 입니다.\nEvent type: 코드 변경이 어떠한 방식에 의해 변경됬는지 선택합니다. (push, pull request 등등)\nStart a build under these conditions: Build 할 조건을 설정하는 부분입니다. 사용자, 브랜치, 파일의 변경에 따라 제한 할 수 있습니다.\nconditions 에 대한 상세 내용은 섹션 제목 Primary source webhook events 옆의 [정보]를 클릭하세요\n\n\n\nEnvironment\n\nCodeBuild agent 가 어떠한 환경으로 프로비저닝 될 것인지 설정 부분입니다.\nEnvironment image: 환경 구성에 사용할 이미지를 선택합니다.\nOperating system: OS 를 선택합니다.\nRuntime: 소스코드를 Build 하기 위해 필요한 환경을 선택합니다.\nRuntime version: 버전을 선택합니다.\nImage version: 버전을 항상 최신 or 선택한 버전을 사용할지 선택합니다.\nService role: CodeBuild agent 가 Build 를 수행하기 위해 권한을 가진 역할을 선택하는 부분입니다. 자동 생성하도록 선택합니다.\nRole name: Service role 을 이름을 입력합니다.\n\n\n\nBuildspec\n\n소개 부분에서 중요하다고 강조한 작업에 대한 순서를 정의하는 설정 부분입니다.\nBuild specifications: Build 정의서를 어디를 참고할지 선택 합니다. 이미 git 저장소에 포함되어 있습니다.\npost_build: 에서 devhaks-sample-s3 대신 여러분이 생성한 버킷 이름을 입력합니다.\n\n\n 12345678910111213141516171819# buildspec.yml 파일입니다.version: 0.2phases:install:  commands:    - npm installpre_build:  commands:    - npm run lint    # - commandbuild:  commands:    - npm run build    # - commandpost_build:  commands:    - ls -al    - aws s3 cp --recursive dist/ s3://devhaks-sample-s3\n\nArtifacts\n\nbuild 결과물을 어디에 저장할지 설정 부분입니다.\n여기서 Type 을 No artifacts 로 설정한 이유는 6번 과정 post_build 단계에서 dist 결과물을 S3 버킷의 바로 아래에 복사하기 위해서 입니다. artifacts type을 활성화 하면 버킷의 하위에 Build project name 이름으로 디렉토리가 생성되는데, 정적사이트에 접속했을 때 바로 index.html 이 보이기 위해서는 s3://devhaks-sample-s3/index.html 처럼 index.html 파일이 존재해야하기 때문입니다.\n\n\n\n\n3. 역할에 정책 추가하기\n[2-6]번 post_build 단계에서 CodeBuild agent 가 dist 결과물을 직접 S3로 복사하기 위해서 추가적으로 Write권한을 주어여 합니다.\n\n[2-5]번 Environment 섹션에서 생성했던 Service role 역할에 S3 Write권한을 할당 해보도록 하겠습니다.\n\n\n\n역할 console 로 이동하여 sample-code-deploy 로 검색하고 검색 결과를 클릭합니다.\n\n\n역할 상세 페이지로 이동한 후, [정책 연결] 버튼을 클릭합니다.\n\n\nAmazonS3FullAccess 정책을 선택하고 우측 하단에 [정책 연결] 버튼을 클릭합니다.\n\n\n\n4. Git 프로젝트 수정하기\ngithub 웹페이지의 git 저장소로 가서 페이지에서 수정을 합니다.\n\n\n\n5. Build 과정 확인하기CodeBuild 콘솔  \n  \nCodeBuild Log이 로그는 CodeBuild agent 가 buildspec.yml 사양 파일에 따른 모든 작업을 진행한 내용입니다.\n\ngithub 로 부터 소스코드를 다운로드 받습니다.\n\n123456789101112131415[Container] 2019/02/28 11:14:39 Waiting for agent ping[Container] 2019/02/28 11:14:43 Waiting for DOWNLOAD_SOURCE[Container] 2019/02/28 11:14:44 Phase is DOWNLOAD_SOURCE[Container] 2019/02/28 11:14:44 CODEBUILD_SRC_DIR=/codebuild/output/src544810733/src/github.com/devhaks/aws[Container] 2019/02/28 11:14:44 YAML location is /codebuild/output/src544810733/src/github.com/devhaks/aws/buildspec.yml[Container] 2019/02/28 11:14:44 Processing environment variables[Container] 2019/02/28 11:14:44 Moving to directory /codebuild/output/src544810733/src/github.com/devhaks/aws[Container] 2019/02/28 11:14:44 Registering with agent[Container] 2019/02/28 11:14:44 Phases found in YAML: 4[Container] 2019/02/28 11:14:44 POST_BUILD: 2 commands[Container] 2019/02/28 11:14:44 INSTALL: 1 commands[Container] 2019/02/28 11:14:44 PRE_BUILD: 1 commands[Container] 2019/02/28 11:14:44 BUILD: 1 commands[Container] 2019/02/28 11:14:44 Phase complete: DOWNLOAD_SOURCE Success: true[Container] 2019/02/28 11:14:44 Phase context status code: Message:\n\nINSTALL 단계\n\n\n \nnpm install\n   을 실행합니다. \n\n12345678910111213141516[Container] 2019/02/28 11:14:45 Entering phase INSTALL[Container] 2019/02/28 11:14:45 Running command npm install&gt; yorkie@2.0.0 install /codebuild/output/src544810733/src/github.com/devhaks/aws/node_modules/yorkie&gt; node bin/install.jsCI detected, skipping Git hooks installationnpm WARN optional SKIPPING OPTIONAL DEPENDENCY: fsevents@1.2.7 (node_modules/fsevents):npm WARN notsup SKIPPING OPTIONAL DEPENDENCY: Unsupported platform for fsevents@1.2.7: wanted &#123;\"os\":\"darwin\",\"arch\":\"any\"&#125; (current: &#123;\"os\":\"linux\",\"arch\":\"x64\"&#125;)added 1145 packages from 610 contributors and audited 23765 packages in 21.607sfound 0 vulnerabilities[Container] 2019/02/28 11:15:08 Phase complete: INSTALL Success: true[Container] 2019/02/28 11:15:08 Phase context status code: Message:\n\nPRE_BUILD 단계\n\n\n \nnpm run lint\n   을 실행합니다. \n\n12345678910[Container] 2019/02/28 11:15:08 Entering phase PRE_BUILD[Container] 2019/02/28 11:15:08 Running command npm run lint&gt; test@0.1.0 lint /codebuild/output/src544810733/src/github.com/devhaks/aws&gt; vue-cli-service lintDONE No lint errors found![Container] 2019/02/28 11:15:09 Phase complete: PRE_BUILD Success: true[Container] 2019/02/28 11:15:09 Phase context status code: Message:\n\nBUILD 단계\n\n\n \nnpm run build\n   을 실행합니다. \n\n1234567891011121314151617181920[Container] 2019/02/28 11:15:09 Entering phase BUILD[Container] 2019/02/28 11:15:09 Running command npm run build&gt; test@0.1.0 build /codebuild/output/src544810733/src/github.com/devhaks/aws&gt; vue-cli-service build- Building for production...DONE Compiled successfully in 6179ms11:15:17 AMFile Size Gzippeddist/js/chunk-vendors.50e9f258.js 82.33 KiB 29.85 KiBdist/js/app.3fca0909.js 2.88 KiB 1.39 KiBdist/css/app.07d7b071.css 0.23 KiB 0.18 KiBImages and other types of assets omitted.DONE Build complete. The dist directory is ready to be deployed.INFO Check out deployment instructions at https://cli.vuejs.org/guide/deployment.html[Container] 2019/02/28 11:15:18 Phase complete: BUILD Success: true[Container] 2019/02/28 11:15:18 Phase context status code: Message:\n\nPOST_BUILD 단계\n\n\n \naws s3 cp --recursive dist/ s3://devhaks-sample-s3\n   을 실행합니다. \n\n1234567891011121314151617181920212223242526272829303132333435363738394041424344454647[Container] 2019/02/28 11:15:18 Entering phase POST_BUILD[Container] 2019/02/28 11:15:18 Running command ls -altotal 456drwxr-xr-x 7 root root 4096 Feb 28 11:15 .drwxr-xr-x 3 root root 4096 Feb 28 11:14 ..drwxr-xr-x 4 root root 4096 Feb 28 11:14 .git-rw-r--r-- 1 root root 1056 Feb 28 11:14 .gitignore-rw-r--r-- 1 root root 357 Feb 28 11:14 README.md-rw-r--r-- 1 root root 53 Feb 28 11:14 babel.config.js-rw-r--r-- 1 root root 566 Feb 28 11:14 buildspec.ymldrwxr-xr-x 5 root root 4096 Feb 28 11:15 distdrwxr-xr-x 800 root root 32768 Feb 28 11:15 node_modules-rw-r--r-- 1 root root 381172 Feb 28 11:15 package-lock.json-rw-r--r-- 1 root root 894 Feb 28 11:14 package.jsondrwxr-xr-x 2 root root 4096 Feb 28 11:14 publicdrwxr-xr-x 4 root root 4096 Feb 28 11:14 src[Container] 2019/02/28 11:15:18 Running command aws s3 cp --recursive dist/ s3://devhaks-sample-s3Completed 237 Bytes/523.4 KiB (2.4 KiB/s) with 8 file(s) remainingupload: dist/css/app.07d7b071.css to s3://devhaks-sample-s3/css/app.07d7b071.cssCompleted 237 Bytes/523.4 KiB (2.4 KiB/s) with 7 file(s) remainingCompleted 3.1 KiB/523.4 KiB (24.9 KiB/s) with 7 file(s) remainingupload: dist/js/app.3fca0909.js to s3://devhaks-sample-s3/js/app.3fca0909.jsCompleted 3.1 KiB/523.4 KiB (24.9 KiB/s) with 6 file(s) remainingCompleted 4.2 KiB/523.4 KiB (32.7 KiB/s) with 6 file(s) remainingupload: dist/favicon.ico to s3://devhaks-sample-s3/favicon.icoCompleted 4.2 KiB/523.4 KiB (32.7 KiB/s) with 5 file(s) remainingCompleted 10.9 KiB/523.4 KiB (82.6 KiB/s) with 5 file(s) remainingupload: dist/img/logo.82b9c7a5.png to s3://devhaks-sample-s3/img/logo.82b9c7a5.pngCompleted 10.9 KiB/523.4 KiB (82.6 KiB/s) with 4 file(s) remainingCompleted 266.9 KiB/523.4 KiB (1.9 MiB/s) with 4 file(s) remainingCompleted 267.6 KiB/523.4 KiB (1.8 MiB/s) with 4 file(s) remainingupload: dist/index.html to s3://devhaks-sample-s3/index.htmlCompleted 267.6 KiB/523.4 KiB (1.8 MiB/s) with 3 file(s) remainingCompleted 285.9 KiB/523.4 KiB (1.8 MiB/s) with 3 file(s) remainingupload: dist/js/app.3fca0909.js.map to s3://devhaks-sample-s3/js/app.3fca0909.js.mapCompleted 285.9 KiB/523.4 KiB (1.8 MiB/s) with 2 file(s) remainingCompleted 368.3 KiB/523.4 KiB (2.1 MiB/s) with 2 file(s) remainingupload: dist/js/chunk-vendors.50e9f258.js to s3://devhaks-sample-s3/js/chunk-vendors.50e9f258.jsCompleted 368.3 KiB/523.4 KiB (2.1 MiB/s) with 1 file(s) remainingCompleted 523.4 KiB/523.4 KiB (2.7 MiB/s) with 1 file(s) remainingupload: dist/js/chunk-vendors.50e9f258.js.map to s3://devhaks-sample-s3/js/chunk-vendors.50e9f258.js.map[Container] 2019/02/28 11:15:20 Phase complete: POST_BUILD Success: true[Container] 2019/02/28 11:15:20 Phase context status code: Message:\n5. 정적 사이트 확인하기S3 console 로 이동하여 버킷의 url 주소를 확인합니다.\n\ncodeDeploy 가 성공되었으면 버킷에 파일들이 저장되어 있을 것이고 버킷 주소로 접속하면 다음과 같은 화면이 나올 것입니다.\n\n\n참고 사항요금제AWS CodeBuild 프리 티어에는 매월 100 빌드 분의 build.general1.small이 포함됩니다. CodeBuild 프리 티어는 12개월의 AWS 프리 티어 기간이 끝나도 자동으로 종료되지 않습니다.\n\n상세 내용 - CodeBuild 요금 정책\n사용 방법 영상","dateCreated":"2019-02-16T22:47:00+09:00","dateModified":"2019-04-02T13:21:36+09:00","datePublished":"2019-02-16T22:47:00+09:00","description":"이번 포스팅은 개발자들에게 자동화의 길에 한 발자국 가까워 지도록 AWS 에서 제공하는 서비스인 CodeBuild 에 대해서 소개합니다.","headline":"[AWS] CodeBuild & S3 를 이용한 정적 사이트 구현","image":["thumbnail.png","cover.jpg"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/02/16/code-build/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/02/16/code-build/","keywords":"CodeBuild, S3","thumbnailUrl":"thumbnail.png"}</script>
+    <meta name="description" content="AWS CodeBuild 을 소개하고 Build 과정을 이해하기 위해 실습 합니다.">
+<meta name="keywords" content="CodeBuild,S3">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="[AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현">
+<meta property="og:url" content="https://devhaks.github.io/2019/02/16/code-build/index.html">
+<meta property="og:site_name" content="Devhaks 개발 저장소">
+<meta property="og:description" content="AWS CodeBuild 을 소개하고 Build 과정을 이해하기 위해 실습 합니다.">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/s3_bucket_1.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/s3_bucket_2.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/s3_bucket_3.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/codebuild_1.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/codebuild_2.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/codebuild_3.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/codebuild_4.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/codebuild_5.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/codebuild_6.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/iam_role_1.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/iam_role_2.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/iam_role_3.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/git_repo_1.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/build_progressing.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/build_process.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/s3_bucket_4.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/s3_result.png">
+<meta property="og:updated_time" content="2019-04-02T04:21:36.563Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="[AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현">
+<meta name="twitter:description" content="AWS CodeBuild 을 소개하고 Build 과정을 이해하기 위해 실습 합니다.">
+<meta name="twitter:image" content="https://devhaks.github.io/2019/02/16/code-build/s3_bucket_1.png">
+    
+    
+        
+    
+
+    
+        <meta property="og:image" content="https://devhaks.github.io/2019/02/16/code-build/thumbnail.png"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/02/16/code-build/thumbnail.png" />
+    
+    
+    
+    <!--STYLES-->
+    <link rel="stylesheet" href="/assets/css/style-hvayrqlizwdi07rnnbeznu6bypqpoi1f8h9ogqeqwree2em57ycyb7kwyhtv.min.css">
+    <!--STYLES END-->
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-135461398-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-135461398-1');
+    </script>
+
+
+    
+</head>
+
+    <body>
+        
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+    
+
+<header id="header" data-behavior="5">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a class="header-title-link" href="/ ">Devhaks 개발 저장소</a>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
+    
+        
+            <a class="header-right-picture " href="/me">
+        
+        
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture">
+        
+        </a>
+    
+</header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>
+            <!-- Define author's picture -->
+
+
+    
+
+<nav id="sidebar" data-behavior="5">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a href="/#about">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture">
+                </a>
+                <h4 class="sidebar-profile-name">이종학</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>author.bio</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/ " title="Home">
+                    
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/all-categories" title="Categories">
+                    
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/all-tags" title="Tags">
+                    
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/all-archives" title="Archives">
+                    
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link open-algolia-search" href="#search" title="Search">
+                    
+                        <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Search</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/me" title="About">
+                    
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                    
+                        <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">GitHub</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full" style="background-image:url('/2019/02/16/code-build/cover.jpg');" data-behavior="5">
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaOut
+                        ">
+                
+<article class="post">
+    
+    
+        <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            [AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2019-02-16T22:47:00+09:00">
+	
+		    Feb 16, 2019
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/AWS/">AWS</a>
+
+
+    
+</div>
+
+    
+</div>
+
+    
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <!-- excerpt -->
+<div class="alert warning"><p>AWS의 일부 서비스에 대한 사용 요금이 추가 될 수 있음을 미리 알려 드립니다.</p>
+</div>
+<h2 id="소개"><a href="#소개" class="headerlink" title="소개"></a>소개</h2><p><strong>CodeBuild</strong> 란 운영 서버에 소스코드를 배포(Deploy)하기 전에 코드에 대한 여러 작업들을 순차적으로 정의하여 진행하는 방식입니다. 여러 작업들은 코드 정리, 정적 분석, 유닛 테스트 등으로 구성 될 수 있습니다. </p>
+<p>여기서 여러 작업들을 순차적으로 진행하는 것은 굉장히 중요합니다. 예로 관리자가 Build 한다고 생각합시다. 과정의 작업이 2~3 정도면 실수 할 일이 거의 없지만, 작업이 10개 이상만 된다면 매번 순서를 체크해 가면서 빼먹지 않고 해야할 뿐더러 중간 과정이 1시간 정도 소요된다면, 하루를 Build 하는데에만 낭비할 것입니다. 컴퓨터가 아닌 이상 실수를 하지 않는 다고 보장 할 수 없습니다. 그렇기 때문에 순차적으로 진행하는 것은 중요한 것입니다.</p>
+<p>AWS는 개발자들에게 사람을 대신하여 자동화의 길에 한 발자국 가까워 지도록 <a href="https://aws.amazon.com/ko/codebuild/" target="_blank" rel="noopener">CodeBuild</a>를 제공합니다. </p>
+<hr>
+<h2 id="실습"><a href="#실습" class="headerlink" title="실습"></a>실습</h2><p>이번 실습에서는 CodeBuild 와 S3 를 이용한 정적 사이트 배포를 진행하도록 하겠습니다.<br><br></p>
+<h3 id="1-S3-bucket-생성하기"><a href="#1-S3-bucket-생성하기" class="headerlink" title="1. S3 bucket 생성하기"></a>1. S3 bucket 생성하기</h3><ol>
+<li><p><a href="https://s3.console.aws.amazon.com/s3/home?region=us-east-1" target="_blank" rel="noopener">S3 console</a> 에 접속하여 [버킷 생성] 버튼을 클릭합니다. 저는 미리 생성한 버킷을 사용하겠습니다. 리전은 <code>서울</code>로 선택하고 [등록] 버튼을 클릭합니다.</p>
+<p><img src="s3_bucket_1.png" alt><br><br></p>
+</li>
+<li><p>생성한 버킷의 [속성]탭 이동합니다. 정적사이트 기능을 하도록 아래와 같이 입력 후, 저장 합니다.</p>
+<p><img src="s3_bucket_2.png" alt><br><br></p>
+</li>
+<li><p>버킷의 접근에 대한 정책을 설정합니다. 정책을 설정하는 이유는 외부로 부터 사이트에 접속하여 볼 수 있도록 하기 위함 입니다. 여기서는 사용자들이 볼수만 있도록 <strong>Read</strong> 권한만 적용 하겠습니다. </p>
+</li>
+</ol>
+<ul>
+<li><p>Resource: 에서 <code>devhaks-sample-s3</code> 대신 여러분이 생성한 버킷 이름을 입력합니다.</p>
+<p><img src="s3_bucket_3.png" alt></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"Version"</span>: <span class="string">"2012-10-17"</span>,</span><br><span class="line">    <span class="attr">"Id"</span>: <span class="string">"Policy1530611678296"</span>,</span><br><span class="line">    <span class="attr">"Statement"</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="attr">"Sid"</span>: <span class="string">"Stmt1530611670504"</span>,</span><br><span class="line">            <span class="attr">"Effect"</span>: <span class="string">"Allow"</span>,</span><br><span class="line">            <span class="attr">"Principal"</span>: <span class="string">"*"</span>,</span><br><span class="line">            <span class="attr">"Action"</span>: <span class="string">"s3:GetObject"</span>,</span><br><span class="line">            <span class="attr">"Resource"</span>: <span class="string">"arn:aws:s3:::devhaks-sample-s3/*"</span></span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="2-CodeBuild-프로젝트-생성하기"><a href="#2-CodeBuild-프로젝트-생성하기" class="headerlink" title="2. CodeBuild 프로젝트 생성하기"></a>2. CodeBuild 프로젝트 생성하기</h3><ol>
+<li><p><a href="https://ap-northeast-2.console.aws.amazon.com/codesuite/codebuild/projects?region=ap-northeast-2" target="_blank" rel="noopener">CodeBuild console</a> 에 접속하여 우측 상단에 있는 [Create build project] 버튼을 클릭합니다.<br><br></p>
+</li>
+<li><p>Project configuration</p>
+<ul>
+<li>Project name: 프로젝트의 이름</li>
+</ul>
+<p><img src="codebuild_1.png" alt><br><br></p>
+</li>
+<li><p>Source</p>
+<ul>
+<li>Source provider: 소스코드를 어디서 받을지 선택합니다.</li>
+<li>Repository: 자신의 계정에 있는 저장소를 사용할 것이므로 <a href="https://github.com/devhaks/aws" target="_blank" rel="noopener">https://github.com/devhaks/aws</a> 를 fork 합니다. 참고로 저장소에 올린 프로젝트는 vue.js 입니다.</li>
+<li>GitHub repository: fork한 자신의 저장소를 선택합니다.</li>
+<li>Build Status: 빌드에 대한 성공/실패 상태를 github 페이지에도 볼 수 있도록 설정합니다.</li>
+</ul>
+<p><img src="codebuild_2.png" alt><br><br></p>
+</li>
+<li><p>Primary source webhook events</p>
+<ul>
+<li>Webhook: 저장소에 코드 변경이 있을 때마다, Build 를 할 것인지에 대한 선택사항 입니다.</li>
+<li>Event type: 코드 변경이 어떠한 방식에 의해 변경됬는지 선택합니다. (push, pull request 등등)</li>
+<li>Start a build under these conditions: Build 할 조건을 설정하는 부분입니다. 사용자, 브랜치, 파일의 변경에 따라 제한 할 수 있습니다.</li>
+<li>conditions 에 대한 상세 내용은 섹션 제목 <code>Primary source webhook events</code> 옆의 [정보]를 클릭하세요</li>
+</ul>
+<p><img src="codebuild_3.png" alt><br><br></p>
+</li>
+<li><p>Environment</p>
+<ul>
+<li>CodeBuild agent 가 어떠한 환경으로 프로비저닝 될 것인지 설정 부분입니다.</li>
+<li>Environment image: 환경 구성에 사용할 이미지를 선택합니다.</li>
+<li>Operating system: OS 를 선택합니다.</li>
+<li>Runtime: 소스코드를 Build 하기 위해 필요한 환경을 선택합니다.</li>
+<li>Runtime version: 버전을 선택합니다.</li>
+<li>Image version: 버전을 항상 최신 or 선택한 버전을 사용할지 선택합니다.</li>
+<li>Service role: CodeBuild agent 가 Build 를 수행하기 위해 <strong>권한을 가진 역할</strong>을 선택하는 부분입니다. 자동 생성하도록 선택합니다.</li>
+<li>Role name: Service role 을 이름을 입력합니다.</li>
+</ul>
+<p><img src="codebuild_4.png" alt><br><br></p>
+</li>
+<li><p>Buildspec</p>
+<ul>
+<li>소개 부분에서 중요하다고 강조한 작업에 대한 순서를 정의하는 설정 부분입니다.</li>
+<li>Build specifications: Build 정의서를 어디를 참고할지 선택 합니다. 이미 git 저장소에 포함되어 있습니다.</li>
+<li>post_build: 에서 <code>devhaks-sample-s3</code> 대신 여러분이 생성한 버킷 이름을 입력합니다.</li>
+</ul>
+<p><img src="codebuild_5.png" alt></p>
+ <figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># buildspec.yml 파일입니다.</span></span><br><span class="line"></span><br><span class="line"><span class="attr">version:</span> <span class="number">0.2</span></span><br><span class="line"><span class="attr">phases:</span></span><br><span class="line"><span class="attr">install:</span></span><br><span class="line"><span class="attr">  commands:</span></span><br><span class="line"><span class="bullet">    -</span> <span class="string">npm</span> <span class="string">install</span></span><br><span class="line"><span class="attr">pre_build:</span></span><br><span class="line"><span class="attr">  commands:</span></span><br><span class="line"><span class="bullet">    -</span> <span class="string">npm</span> <span class="string">run</span> <span class="string">lint</span></span><br><span class="line">    <span class="comment"># - command</span></span><br><span class="line"><span class="attr">build:</span></span><br><span class="line"><span class="attr">  commands:</span></span><br><span class="line"><span class="bullet">    -</span> <span class="string">npm</span> <span class="string">run</span> <span class="string">build</span></span><br><span class="line">    <span class="comment"># - command</span></span><br><span class="line"><span class="attr">post_build:</span></span><br><span class="line"><span class="attr">  commands:</span></span><br><span class="line"><span class="bullet">    -</span> <span class="string">ls</span> <span class="bullet">-al</span></span><br><span class="line"><span class="bullet">    -</span> <span class="string">aws</span> <span class="string">s3</span> <span class="string">cp</span> <span class="bullet">--recursive</span> <span class="string">dist/</span> <span class="attr">s3://devhaks-sample-s3</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Artifacts</p>
+<ul>
+<li>build 결과물을 어디에 저장할지 설정 부분입니다.</li>
+<li>여기서 Type 을 <code>No artifacts</code> 로 설정한 이유는 6번 과정 <code>post_build</code> 단계에서 <code>dist</code> 결과물을 S3 버킷의 바로 아래에 복사하기 위해서 입니다. artifacts type을 활성화 하면 버킷의 하위에 <code>Build project name</code> 이름으로 디렉토리가 생성되는데, 정적사이트에 접속했을 때 바로 index.html 이 보이기 위해서는 s3://devhaks-sample-s3/index.html 처럼 index.html 파일이 존재해야하기 때문입니다.</li>
+</ul>
+<p><img src="codebuild_6.png" alt></p>
+</li>
+</ol>
+<h2 id="3-역할에-정책-추가하기"><a href="#3-역할에-정책-추가하기" class="headerlink" title="3. 역할에 정책 추가하기"></a>3. 역할에 정책 추가하기</h2><ul>
+<li><p>[2-6]번 <code>post_build</code> 단계에서 CodeBuild agent 가 <code>dist</code> 결과물을 직접 S3로 복사하기 위해서 추가적으로 <code>Write</code>권한을 주어여 합니다.</p>
+</li>
+<li><p>[2-5]번 Environment 섹션에서 생성했던 <code>Service role</code> 역할에 S3 <code>Write</code>권한을 할당 해보도록 하겠습니다.</p>
+</li>
+</ul>
+<ol>
+<li><p><a href="https://console.aws.amazon.com/iam/home?region=ap-northeast-2#/roles" target="_blank" rel="noopener">역할 console</a> 로 이동하여 <code>sample-code-deploy</code> 로 검색하고 검색 결과를 클릭합니다.</p>
+<p><img src="iam_role_1.png" alt><br><br></p>
+</li>
+<li><p>역할 상세 페이지로 이동한 후, [정책 연결] 버튼을 클릭합니다.</p>
+<p><img src="iam_role_2.png" alt><br><br></p>
+</li>
+<li><p><code>AmazonS3FullAccess</code> 정책을 선택하고 우측 하단에 [정책 연결] 버튼을 클릭합니다.<br><img src="iam_role_3.png" alt><br><br></p>
+</li>
+</ol>
+<!-- <div></div> -->
+<h2 id="4-Git-프로젝트-수정하기"><a href="#4-Git-프로젝트-수정하기" class="headerlink" title="4. Git 프로젝트 수정하기"></a>4. Git 프로젝트 수정하기</h2><ul>
+<li><p>github 웹페이지의 git 저장소로 가서 페이지에서 수정을 합니다.</p>
+<p><img src="git_repo_1.png" alt></p>
+</li>
+</ul>
+<h2 id="5-Build-과정-확인하기"><a href="#5-Build-과정-확인하기" class="headerlink" title="5. Build 과정 확인하기"></a>5. Build 과정 확인하기</h2><h3 id="CodeBuild-콘솔"><a href="#CodeBuild-콘솔" class="headerlink" title="CodeBuild 콘솔"></a>CodeBuild 콘솔</h3><p>  <img src="build_progressing.png" alt></p>
+<p>  <img src="build_process.png" alt></p>
+<h3 id="CodeBuild-Log"><a href="#CodeBuild-Log" class="headerlink" title="CodeBuild Log"></a>CodeBuild Log</h3><p>이 로그는 CodeBuild agent 가 buildspec.yml 사양 파일에 따른 모든 작업을 진행한 내용입니다.<br><br></p>
+<ol>
+<li>github 로 부터 소스코드를 다운로드 받습니다.</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[Container] 2019/02/28 11:14:39 Waiting <span class="keyword">for</span> agent ping</span><br><span class="line">[Container] 2019/02/28 11:14:43 Waiting <span class="keyword">for</span> DOWNLOAD_SOURCE</span><br><span class="line">[Container] 2019/02/28 11:14:44 Phase is DOWNLOAD_SOURCE</span><br><span class="line">[Container] 2019/02/28 11:14:44 CODEBUILD_SRC_DIR=/codebuild/output/src544810733/src/github.com/devhaks/aws</span><br><span class="line">[Container] 2019/02/28 11:14:44 YAML location is /codebuild/output/src544810733/src/github.com/devhaks/aws/buildspec.yml</span><br><span class="line">[Container] 2019/02/28 11:14:44 Processing environment variables</span><br><span class="line">[Container] 2019/02/28 11:14:44 Moving to directory /codebuild/output/src544810733/src/github.com/devhaks/aws</span><br><span class="line">[Container] 2019/02/28 11:14:44 Registering with agent</span><br><span class="line">[Container] 2019/02/28 11:14:44 Phases found <span class="keyword">in</span> YAML: 4</span><br><span class="line">[Container] 2019/02/28 11:14:44 POST_BUILD: 2 commands</span><br><span class="line">[Container] 2019/02/28 11:14:44 INSTALL: 1 commands</span><br><span class="line">[Container] 2019/02/28 11:14:44 PRE_BUILD: 1 commands</span><br><span class="line">[Container] 2019/02/28 11:14:44 BUILD: 1 commands</span><br><span class="line">[Container] 2019/02/28 11:14:44 Phase complete: DOWNLOAD_SOURCE Success: <span class="literal">true</span></span><br><span class="line">[Container] 2019/02/28 11:14:44 Phase context status code: Message:</span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li>INSTALL 단계</li>
+</ol>
+<ul>
+<li><span class="highlight-text red"> 
+npm install
+  </span> 을 실행합니다. </li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[Container] 2019/02/28 11:14:45 Entering phase INSTALL</span><br><span class="line">[Container] 2019/02/28 11:14:45 Running <span class="built_in">command</span> npm install</span><br><span class="line"></span><br><span class="line">&gt; yorkie@2.0.0 install /codebuild/output/src544810733/src/github.com/devhaks/aws/node_modules/yorkie</span><br><span class="line">&gt; node bin/install.js</span><br><span class="line"></span><br><span class="line">CI detected, skipping Git hooks installation</span><br><span class="line">npm WARN optional SKIPPING OPTIONAL DEPENDENCY: fsevents@1.2.7 (node_modules/fsevents):</span><br><span class="line">npm WARN notsup SKIPPING OPTIONAL DEPENDENCY: Unsupported platform <span class="keyword">for</span> fsevents@1.2.7: wanted &#123;<span class="string">"os"</span>:<span class="string">"darwin"</span>,<span class="string">"arch"</span>:<span class="string">"any"</span>&#125; (current: &#123;<span class="string">"os"</span>:<span class="string">"linux"</span>,<span class="string">"arch"</span>:<span class="string">"x64"</span>&#125;)</span><br><span class="line"></span><br><span class="line">added 1145 packages from 610 contributors and audited 23765 packages <span class="keyword">in</span> 21.607s</span><br><span class="line">found 0 vulnerabilities</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[Container] 2019/02/28 11:15:08 Phase complete: INSTALL Success: <span class="literal">true</span></span><br><span class="line">[Container] 2019/02/28 11:15:08 Phase context status code: Message:</span><br></pre></td></tr></table></figure>
+<ol start="3">
+<li>PRE_BUILD 단계</li>
+</ol>
+<ul>
+<li><span class="highlight-text red"> 
+npm run lint
+  </span> 을 실행합니다. </li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[Container] 2019/02/28 11:15:08 Entering phase PRE_BUILD</span><br><span class="line">[Container] 2019/02/28 11:15:08 Running <span class="built_in">command</span> npm run lint</span><br><span class="line"></span><br><span class="line">&gt; <span class="built_in">test</span>@0.1.0 lint /codebuild/output/src544810733/src/github.com/devhaks/aws</span><br><span class="line">&gt; vue-cli-service lint</span><br><span class="line"></span><br><span class="line">DONE No lint errors found!</span><br><span class="line"></span><br><span class="line">[Container] 2019/02/28 11:15:09 Phase complete: PRE_BUILD Success: <span class="literal">true</span></span><br><span class="line">[Container] 2019/02/28 11:15:09 Phase context status code: Message:</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>BUILD 단계</li>
+</ol>
+<ul>
+<li><span class="highlight-text red"> 
+npm run build
+  </span> 을 실행합니다. </li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[Container] 2019/02/28 11:15:09 Entering phase BUILD</span><br><span class="line">[Container] 2019/02/28 11:15:09 Running <span class="built_in">command</span> npm run build</span><br><span class="line"></span><br><span class="line">&gt; <span class="built_in">test</span>@0.1.0 build /codebuild/output/src544810733/src/github.com/devhaks/aws</span><br><span class="line">&gt; vue-cli-service build</span><br><span class="line"></span><br><span class="line">- Building <span class="keyword">for</span> production...</span><br><span class="line"></span><br><span class="line">DONE Compiled successfully <span class="keyword">in</span> 6179ms11:15:17 AM</span><br><span class="line">File Size Gzipped</span><br><span class="line">dist/js/chunk-vendors.50e9f258.js 82.33 KiB 29.85 KiB</span><br><span class="line">dist/js/app.3fca0909.js 2.88 KiB 1.39 KiB</span><br><span class="line">dist/css/app.07d7b071.css 0.23 KiB 0.18 KiB</span><br><span class="line"></span><br><span class="line">Images and other types of assets omitted.</span><br><span class="line">DONE Build complete. The dist directory is ready to be deployed.</span><br><span class="line">INFO Check out deployment instructions at https://cli.vuejs.org/guide/deployment.html</span><br><span class="line"></span><br><span class="line">[Container] 2019/02/28 11:15:18 Phase complete: BUILD Success: <span class="literal">true</span></span><br><span class="line">[Container] 2019/02/28 11:15:18 Phase context status code: Message:</span><br></pre></td></tr></table></figure>
+<ol start="5">
+<li>POST_BUILD 단계</li>
+</ol>
+<ul>
+<li><span class="highlight-text red"> 
+aws s3 cp --recursive dist/ s3://devhaks-sample-s3
+  </span> 을 실행합니다. </li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">[Container] 2019/02/28 11:15:18 Entering phase POST_BUILD</span><br><span class="line">[Container] 2019/02/28 11:15:18 Running <span class="built_in">command</span> ls -al</span><br><span class="line"></span><br><span class="line">total 456</span><br><span class="line">drwxr-xr-x 7 root root 4096 Feb 28 11:15 .</span><br><span class="line">drwxr-xr-x 3 root root 4096 Feb 28 11:14 ..</span><br><span class="line">drwxr-xr-x 4 root root 4096 Feb 28 11:14 .git</span><br><span class="line">-rw-r--r-- 1 root root 1056 Feb 28 11:14 .gitignore</span><br><span class="line">-rw-r--r-- 1 root root 357 Feb 28 11:14 README.md</span><br><span class="line">-rw-r--r-- 1 root root 53 Feb 28 11:14 babel.config.js</span><br><span class="line">-rw-r--r-- 1 root root 566 Feb 28 11:14 buildspec.yml</span><br><span class="line">drwxr-xr-x 5 root root 4096 Feb 28 11:15 dist</span><br><span class="line">drwxr-xr-x 800 root root 32768 Feb 28 11:15 node_modules</span><br><span class="line">-rw-r--r-- 1 root root 381172 Feb 28 11:15 package-lock.json</span><br><span class="line">-rw-r--r-- 1 root root 894 Feb 28 11:14 package.json</span><br><span class="line">drwxr-xr-x 2 root root 4096 Feb 28 11:14 public</span><br><span class="line">drwxr-xr-x 4 root root 4096 Feb 28 11:14 src</span><br><span class="line"></span><br><span class="line">[Container] 2019/02/28 11:15:18 Running <span class="built_in">command</span> aws s3 cp --recursive dist/ s3://devhaks-sample-s3</span><br><span class="line"></span><br><span class="line">Completed 237 Bytes/523.4 KiB (2.4 KiB/s) with 8 file(s) remaining</span><br><span class="line">upload: dist/css/app.07d7b071.css to s3://devhaks-sample-s3/css/app.07d7b071.css</span><br><span class="line">Completed 237 Bytes/523.4 KiB (2.4 KiB/s) with 7 file(s) remaining</span><br><span class="line">Completed 3.1 KiB/523.4 KiB (24.9 KiB/s) with 7 file(s) remaining</span><br><span class="line">upload: dist/js/app.3fca0909.js to s3://devhaks-sample-s3/js/app.3fca0909.js</span><br><span class="line">Completed 3.1 KiB/523.4 KiB (24.9 KiB/s) with 6 file(s) remaining</span><br><span class="line">Completed 4.2 KiB/523.4 KiB (32.7 KiB/s) with 6 file(s) remaining</span><br><span class="line">upload: dist/favicon.ico to s3://devhaks-sample-s3/favicon.ico</span><br><span class="line">Completed 4.2 KiB/523.4 KiB (32.7 KiB/s) with 5 file(s) remaining</span><br><span class="line">Completed 10.9 KiB/523.4 KiB (82.6 KiB/s) with 5 file(s) remaining</span><br><span class="line">upload: dist/img/logo.82b9c7a5.png to s3://devhaks-sample-s3/img/logo.82b9c7a5.png</span><br><span class="line">Completed 10.9 KiB/523.4 KiB (82.6 KiB/s) with 4 file(s) remaining</span><br><span class="line">Completed 266.9 KiB/523.4 KiB (1.9 MiB/s) with 4 file(s) remaining</span><br><span class="line">Completed 267.6 KiB/523.4 KiB (1.8 MiB/s) with 4 file(s) remaining</span><br><span class="line">upload: dist/index.html to s3://devhaks-sample-s3/index.html</span><br><span class="line">Completed 267.6 KiB/523.4 KiB (1.8 MiB/s) with 3 file(s) remaining</span><br><span class="line">Completed 285.9 KiB/523.4 KiB (1.8 MiB/s) with 3 file(s) remaining</span><br><span class="line">upload: dist/js/app.3fca0909.js.map to s3://devhaks-sample-s3/js/app.3fca0909.js.map</span><br><span class="line">Completed 285.9 KiB/523.4 KiB (1.8 MiB/s) with 2 file(s) remaining</span><br><span class="line">Completed 368.3 KiB/523.4 KiB (2.1 MiB/s) with 2 file(s) remaining</span><br><span class="line">upload: dist/js/chunk-vendors.50e9f258.js to s3://devhaks-sample-s3/js/chunk-vendors.50e9f258.js</span><br><span class="line">Completed 368.3 KiB/523.4 KiB (2.1 MiB/s) with 1 file(s) remaining</span><br><span class="line">Completed 523.4 KiB/523.4 KiB (2.7 MiB/s) with 1 file(s) remaining</span><br><span class="line">upload: dist/js/chunk-vendors.50e9f258.js.map to s3://devhaks-sample-s3/js/chunk-vendors.50e9f258.js.map</span><br><span class="line"></span><br><span class="line">[Container] 2019/02/28 11:15:20 Phase complete: POST_BUILD Success: <span class="literal">true</span></span><br><span class="line">[Container] 2019/02/28 11:15:20 Phase context status code: Message:</span><br></pre></td></tr></table></figure>
+<h2 id="5-정적-사이트-확인하기"><a href="#5-정적-사이트-확인하기" class="headerlink" title="5. 정적 사이트 확인하기"></a>5. 정적 사이트 확인하기</h2><p><a href="https://s3.console.aws.amazon.com/s3/home?region=ap-northeast-2" target="_blank" rel="noopener">S3 console</a> 로 이동하여 버킷의 url 주소를 확인합니다.</p>
+<p><img src="s3_bucket_4.png" alt></p>
+<p>codeDeploy 가 성공되었으면 버킷에 파일들이 저장되어 있을 것이고 버킷 주소로 접속하면 다음과 같은 화면이 나올 것입니다.</p>
+<p><img src="s3_result.png" alt></p>
+<hr>
+<h2 id="참고-사항"><a href="#참고-사항" class="headerlink" title="참고 사항"></a>참고 사항</h2><h3 id="요금제"><a href="#요금제" class="headerlink" title="요금제"></a>요금제</h3><div class="alert info"><p>AWS CodeBuild 프리 티어에는 매월 100 빌드 분의 build.general1.small이 포함됩니다. CodeBuild 프리 티어는 12개월의 AWS 프리 티어 기간이 끝나도 자동으로 종료되지 않습니다.</p>
+</div>
+<p>상세 내용 - <a href="https://aws.amazon.com/ko/codebuild/pricing/" target="_blank" rel="noopener">CodeBuild 요금 정책</a></p>
+<h3 id="사용-방법-영상"><a href="#사용-방법-영상" class="headerlink" title="사용 방법 영상"></a>사용 방법 영상</h3><div class="video-container"><iframe src="//www.youtube.com/embed/E6EBg46vvu0" frameborder="0" allowfullscreen></iframe></div>
+            
+
+        </div>
+    </div>
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br>
+                
+    <a class="tag tag--primary tag--small t-link" href="/tags/CodeBuild/">CodeBuild</a> <a class="tag tag--primary tag--small t-link" href="/tags/S3/">S3</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/03/30/puppeteer/" data-tooltip="[nodejs] puppeteer 뉴스 기사 메타 정보 크롤링" aria-label="PREVIOUS: [nodejs] puppeteer 뉴스 기사 메타 정보 크롤링">
+                
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    <a class="post-action-btn btn btn--disabled">
+                
+                    <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/02/16/code-build/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/02/16/code-build/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://plus.google.com/share?url=https://devhaks.github.io/2019/02/16/code-build/" title="Share on Google+">
+                    <i class="fab fa-google-plus" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+                <div id="disqus_thread"></div>
+<script>
+
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://devhaks.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+            
+        
+    </div>
+</article>
+
+
+                <footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2019 이종학. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="5">
+                    <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/03/30/puppeteer/" data-tooltip="[nodejs] puppeteer 뉴스 기사 메타 정보 크롤링" aria-label="PREVIOUS: [nodejs] puppeteer 뉴스 기사 메타 정보 크롤링">
+                
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    <a class="post-action-btn btn btn--disabled">
+                
+                    <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/02/16/code-build/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/02/16/code-build/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://plus.google.com/share?url=https://devhaks.github.io/2019/02/16/code-build/" title="Share on Google+">
+                    <i class="fab fa-google-plus" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="5">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/02/16/code-build/">
+                        <i class="fab fa-facebook" aria-hidden="true"></i><span>Share on Facebook</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/02/16/code-build/">
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://plus.google.com/share?url=https://devhaks.github.io/2019/02/16/code-build/">
+                        <i class="fab fa-google-plus" aria-hidden="true"></i><span>Share on Google+</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture">
+        
+            <h4 id="about-card-name">이종학</h4>
+        
+            <!-- <div id="about-card-bio"><p>author.bio</p>
+</div> -->
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br>
+                <p>Software developer</p>
+
+            </div>
+        
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/images/cover.jpg');"></div>
+        <!--SCRIPTS-->
+<script src="/assets/js/script-blbisryega5j71rhknihaxpaao2saxn2xzyopjbn07zwogkjpijgk3bhtaqb.min.js"></script>
+<!--SCRIPTS END-->
+
+    
+        <script>
+             var disqus_config = function () {
+                 this.page.url = 'https://devhaks.github.io/2019/02/16/code-build/';
+                 
+                    this.page.identifier = '2019/02/16/code-build/';
+                 
+             };
+            (function() {
+                var d = document, s = d.createElement('script');
+                var disqus_shortname = 'devhaks';
+                s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+    
+
+
+
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
+    </body>
+</html>

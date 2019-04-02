@@ -1,0 +1,719 @@
+
+<!DOCTYPE html>
+<html lang="en,default">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Devhaks 개발 저장소">
+    <title>[nodejs] puppeteer 뉴스 기사 메타 정보 크롤링 - Devhaks 개발 저장소</title>
+    <meta name="author" content="이종학">
+    
+    
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n안녕하세요. 저는 현재 기업 관리 통합 솔루션 질링스의 SW 리더로서 시스템 관리 및 백앤드 개발을 담당하고 있습니다. 최근 서비스에서 기업의 뉴스 요약문을 수집해야 하는 이슈가 생겼습니다. 그러면 어떠한 과정을 거쳐 뉴스 요약문을 수집 했는지에 대해 글을 써보도록 하겠습니다. \n이 글은 단순히 기능 설명이 아닌 제가 경험한 지식을 녹여내려 쓴 것이므로 내용이 많을 수 있습니다. \n\n목차\n배경\n웹 페이지 크롤링 방법\nMethod GET 요청\n정적(static) 사이트\n동적(dynamic) 사이트\n\n\nHeadless browser 사용\n\n\n시나리오 및 코드\nTips\n\n\n배경질링스는 기업의 정보를 쉽게 관리 할 수 있도록 지원합니다. 그 기능 중에 하나인 기업 뉴스 관리 기능이 있습니다. 질링스는 현재 사용자가 직접 뉴스를 관리 하지 않아도 기업의 뉴스를 주기적으로 수집하는 스케쥴러 서버를 통해 뉴스를 저장하고 있습니다. 이때 기본적으로 저장하는 데이터는 주소, 제목, 언론사, 발행일자 입니다. 따로 기사 요약문을 저장하지는 않았습니다.\n그런데 질링스 고객사인 스타트업 엑셀러레이터 엔슬파트너스가 질링스에서 수집한 뉴스를 엔슬파트너스 홈페이지에 보여주고 싶다는 needs 와 추가적으로 기사 요약문도 보여줄 수 있느냐는 얘기를 듣고 이 부분을 기획하고 개발하기로 결정하였습니다.  \n\n개발 목적\n사용자가 뉴스 정보 쉽게 관리 할 수 있도록 지원\n\n개발 목표\n국내 몇백개가 되는 언론사의 뉴스 기사 메타 정보 자동 수집\n\n개발 사항 \n\n사용자측 기업 뉴스 관리 기능 강화\n기존 방식 : 사용자가 직접 기사의 주소, 제목, 언론사, 발행일자를 기입해야함\n새로운 방식 : 기사의 주소 기입시, 제목, 언론사, 요약문 자동 입력됨\n\n\n스케쥴러 서버에서 요약문도 같이 수집하도록 개선\n\n\n\n\n웹 페이지 크롤링 방법웹 페이지를 크롤링하는 방법은 크게 2가지로 나눌 수 있습니다. \n\nMethod GET 요청\nHeadless browser 사용\n\n1. Method GET 요청Get 요청에도 Case 가 다른 경우가 있습니다. 웹 사이트가 어떤 유형으로 만들어진 것인지에 따라 응답 결과가 다릅니다. 간단히 Static vs Dynamaic 2가지 유형으로 나눌 수 있습니다. 기술적인 이해를 돕고자 2가지 유형의 결과와 함께 설명하겠습니다.  \n\n정적(Static) 사이트\n12// linux cmd 에서 실행$ curl https://devhaks.github.io\n위 요청 결과는 아래 링크의 내용과 같습니다. 이 결과는 웹페이지의 콘텐츠가 미리 생성된 것을 랜더링 해주기 때문입니다.https://github.com/devhaks/devhaks.github.io/blob/master/index.html\n\n\n동적(Dynamic) 사이트\nDemo: http://fiddle.jshell.net/leejognhak/oe0x2r8u/show/#/user/foo\n12// linux cmd 에서 실행$ curl http://fiddle.jshell.net/leejognhak/oe0x2r8u/show/#/user/foo\n응답 결과\n1234567891011121314151617181920212223242526272829303132&lt;!DOCTYPE HTML&gt;&lt;html&gt;  &lt;head&gt;    ...(생략)  &lt;/head&gt;  &lt;body&gt;    &lt;div id=\"wrapper\"&gt;      &lt;header&gt;        &lt;h1&gt;&lt;a href=\"//jsfiddle.net/leejognhak/oe0x2r8u/?utm_source=website&amp;amp;utm_medium=embed&amp;amp;utm_campaign=oe0x2r8u\" target=\"_blank\"&gt;Edit in JSFiddle&lt;/a&gt;&lt;/h1&gt;        &lt;div id=\"actions\"&gt;          &lt;ul class=\"normalRes\"&gt;              &lt;li class=&amp;quot;active&amp;quot;&gt;                &lt;a data-trigger-type=\"result\" href=\"#Result\"&gt;Result&lt;/a&gt;              &lt;/li&gt;          &lt;/ul&gt;          &lt;div class=\"hl\"&gt;&lt;/div&gt;        &lt;/div&gt;      &lt;/header&gt;      &lt;div id=\"tabs\"&gt;        &lt;div class=\"tCont result active\" id=\"result\"&gt;&lt;/div&gt;          &lt;script type=\"text/javascript\"&gt;            window.addEventListener('load', function()&#123;              if (typeof(EmbedManager) === undefined)&#123;                  EmbedManager.loadResult();              &#125;            &#125;, false);          &lt;/script&gt;      &lt;/div&gt;    &lt;/div&gt;  &lt;/body&gt;&lt;/html&gt;\n데모용 페이지를 열어보면 각 페이지 별로 Home, Profile, Posts 단어가 존재 합니다. 위의 페이지 소스 결과를 보면 body 태그 안에는 내용이 없습니다. 즉, 동적 사이트는 정적 사이트 처럼 미리 만들어진 콘텐츠를 보여주는 것이 아니라 필요할 때마다 콘텐츠를 body 태그에 뿌려주는 것입니다. 예로 쇼핑몰 사이트에서는 ‘더 보기’ 버튼을 누르면 상품들이 더 나오는 것처럼 말이죠.\n\n\nGET 요청 방법의 한계점\n\n한글 깨짐국내 언론사의 뉴스 기사를 예로 들겠습니다.\n12// linux cmd 에서 실행$ curl https://www.mk.co.kr/news/it/view/2019/03/191946/\n응답 결과\n1234567891011121314151617181920212223&lt;!DOCTYPE html&gt;&lt;html lang=\"ko\"&gt;  &lt;head&gt;    &lt;title&gt;[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���&lt;/title&gt;    &lt;meta http-equiv=\"Content-Type\" content=\"text/html; charset=euc-kr\"&gt;    &lt;meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge,chrome=1\"&gt;    &lt;meta property=\"article:author\" content=\"�ſ���\"/&gt;    &lt;meta name=\"apple-mobile-web-app-title\" content=\"mk\"/&gt;    &lt;link rel='stylesheet' type='text/css' href='https://common.mk.co.kr/common/css/2015/news_2015.css'&gt;    &lt;link rel='stylesheet' type='text/css' href='https://common.mk.co.kr/common/css/2019/error.css'&gt;    &lt;link rel='shortcut icon' href='//img.mk.co.kr/main/2015/mk_new/favicon_new.ico'&gt;    &lt;link rel='canonical' href='https://www.mk.co.kr/news/it/view/2019/03/191946/'&gt;    &lt;link rel='amphtml' href='http://m.mk.co.kr/news/amp/headline/2019/191946?PageSpeed=off'&gt;    &lt;link rel='alternate' media='only screen and ( max-width: 640px)' href='http://m.mk.co.kr/news/it/2019/191946/'&gt;    &lt;meta name='title' content='[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���'&gt;    &lt;meta name='description' content='[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����?, �ۼ���-�ſ���, ����-it, ����-LG CNS�� ������ 12�� ��������(KorQuAD��The Korean Question Answering Dataset)������ ���� ù AI(�ΰ�����)�� ������ ������. �����ڵ��� �ڻ� AI ���α׷� �ɷ��� ���������� ������ �� �ֵ��� ��������. AI�� �����ڰ�'&gt;    &lt;meta name='classification' content='it'&gt;    &lt;meta property='article:published'  content='2019-03-29' /&gt;  &lt;/head&gt;  &lt;body&gt;    ...(생략)  &lt;/body&gt;&lt;/html&gt;\n브라우저로 접속하면 한글로된 글이 보이지만, GET 요청 결과는 한글이 깨진 상태입니다.\n1&lt;meta http-equiv=\"Content-Type\" content=\"text/html; charset=euc-kr\"&gt;\n그 이유는 위 소스코드의 charset이 euc-kr 이기 때문입니다. 현대에 만들어진 사이트는 대부분 utf-8이지만 오래된 홈페이지의 경우 euc-kr인 경우가 있습니다.\n\n페이지 리다이렉트\n이 경우는 url 로 접속 했는데, 다른 url 주소로 튕기는 것입니다. 리다이렉트가 발생되는 시점은 해당 사이트가 어떻게 처리 했는가에 따라 다릅니다. 서버에서 처리 했는지 또는 브라우저의 자바스크립트에 의해 처리 되었는지 파악하기에 무리 입니다.  \n\n\n\n\nGET 요청 방법으로 웹페이지 크롤링 하려는 경우, 정적 사이트 &amp; 콘텐츠가 깨지지 않는 사이트 &amp; 리다이렉트 되지 않는 페이지를 대상으로 하시는 것을 권장합니다.\n\n2. Headless browser 사용앞서 GET 요청 방법으로는 기능을 개발하는데 한계점이 있습니다. 그 한계점을 극복하고자 두번째 방법을 채택하였습니다.  \n\nHeadless browser우리가 일상적으로 사용하는 IE, 크롬, 사파리 등의 브라우저는 사용하기 쉽게 GUI(Graphical User Interface) 를 제공합니다. 그러면 Headless 란 의미는 단순히 GUI 를 지원하지 않는다는 것입니다. GUI 를 제공하지 않으면 어떻게 조작을 할 수 있지 라는 의문은 프로그래밍을 통해서 가능합니다. 사용자가 브라우저를 열고 마우스 클릭이나 타이핑 등의 행동을 똑같이 프로그래밍으로 자동화 할 수 있습니다.\n\nPuppeteer \nPuppeteer 는 구글 Chrome 또는 Chromium 브라우저를 조작할 수 있도록 도와주는 nodejs 의 패키지 라이브러리 입니다. \nPuppeteer 로 할 수 있는 기능은 다음과 같습니다.\n\nSPA (단일 페이지 응용 프로그램)를 크롤링하고 사전 렌더링 된 콘텐츠 (즉, “SSR”(서버 측 렌더링))를 생성합니다.\n페이지의 스크린 샷 및 PDF 생성\n양식 제출, UI 테스트, 키보드 입력 등을 자동화 합니다.\n\n이외 더 많은 기능은 Puppeteer API 문서를 참고하시기 바랍니다.\n\n설치\n1$ npm i cheerio puppeteer\ncheerio 는 텍스트로된 html 을 DOM으로 파싱해주는 라이브러리 입니다. 파싱 후에는 jQuery 처럼 사용 할 수 있습니다.\npuppeteer 를 설치하려면 각 OS별로 의존성 패키지를 설치 해야합니다.개발용으로 사용하는 PC에는 이미 패키지가 설치되어 있을 수 있기 때문에 puppeteer 설치 오류가 발생하지 않을 수 있습니다.만약 오류가 발생할 경우, 아래 경로로 찾아갑니다. (디렉토리명이 다를 수 있습니다.)\n12345678$ cd project/node_modules/puppeteer/.local-chromium/linux-624492/chrome-linux$ ldd chrome | grep not # 설치되지 않은 패키지 목록을 출력합니다.#Output not install package list...# ubuntu 패키지 설치 예시$ sudo apt-get install libatspi-dev libatspi2.0-0 libgtk-3-0\nPuppeteer를 설치하면 API가 작동하는 Chromium의 최신 버전 (~ 170MB Mac, ~ 282MB Linux, ~ 280MB Win)이 다운로드됩니다.\n\nPuppeteer는 노드 v6.4.0 이상을 필요로하지만 설명할 코드의 예제는 노드 v7.6.0 이상에서만 지원되는 async / await를 사용합니다.\n\n\n\n\n시나리오 및 코드기사의 메타 정보를 사람이 수집하는 것처럼 puppeteer 를 통해 똑같이 수집 하도록 순서를 나열 해보겠습니다.\n\n브라우저를 띄운다.\n페이지를 띄운다. (브라우저와 동시에 같이 띄워짐)\n페이지에 뉴스 기사 주소를 입력해서 접속한다.\n웹페에지의 페이지 소스를 확인한다.\n페이지 소스에서 아래 속성 값을 가진 &lt;meta&gt; 태그의 content 속성 값을 추출한다.\n제목: title, og:title, twitter:title\n요약문: description, og:description, twitter:description\n썸네일: og:image, twitter:image\n\n\n페이지 닫기\n브라우저 닫기\n\n아래 내용은 질링스 서비스에서 가져온 뉴스 자동 수집 코드의 일부분 입니다.\n123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142const puppeteer = require('puppeteer');const cheerio = require('cheerio');(async () =&gt; &#123;  /**   * @description 기사의 메타 정보를 추출합니다.   *   * @summary 제목, 요약문, 썸네일 정보를 추출합니다.   *   * @params &#123;string&#125; html - 크롤링한 페이지 html   *   * @returns &#123;object&#125;   */  function extractNewsData(html) &#123;    const newsData = &#123;      title: null,      description: null,      image: null    &#125;;    // cheerio 라이브러리를 사용하여 html을 DOM 으로 파싱합니다.    const $ = cheerio.load(html);    // meta 태그만 추출합니다    const $metaList = $('meta');    for (let index = 0; index &lt; $metaList.length; index += 1) &#123;      const element = cheerio($metaList[index]);      // meta 태그의 content 속성 값을 추출합니다.      let content = element.attr('content');      if (!content || !content.trim()) &#123;        continue;      &#125;      content = content.trim();      // meta 태그의  property 속성 값을 추출합니다.      let propertyAttr = element.attr('property');      if (propertyAttr) &#123;        propertyAttr = propertyAttr.toLocaleLowerCase();      &#125;      // 추출할 property 에 따라 newsData 에 할당합니다.      switch (propertyAttr) &#123;        case 'og:title':          newsData.title = content;          break;        case 'og:description':          newsData.description = content;          break;        case 'og:image':          newsData.image = content;          break;        default:          break;      &#125;      // meta 태그의  name 속성 값을 추출합니다.      let nameAttr = element.attr('name');      if (nameAttr) &#123;        nameAttr = nameAttr.toLocaleLowerCase();      &#125;      // 추출할 name 에 따라 newsData 에 할당합니다.      switch (nameAttr) &#123;        case 'title':        case 'twitter:title':          newsData.title = content;          break;        case 'description':        case 'twitter:description':          newsData.description = content;          break;        case 'twitter:image':          newsData.image = content;          break;        default:          break;      &#125;    &#125; // end for    return newsData;  &#125; // end extractNewsDate()  // 브라우저 옵션 설정  const browserOption = &#123;    slowMo: 500, // 디버깅용으로 퍼핏티어 작업을 지정된 시간(ms)만큼 늦춥니다.    headless: false // 디버깅용으로 false 지정하면 브라우저가 자동으로 열린다.  &#125;;  // 1. 브라우저를 띄운다. =&gt; 브라우저 객체 생성  const browser = await puppeteer.launch(browserOption);  // 2. 페이지를 띄운다. =&gt; 페이지 객체 생성  const page = await browser.newPage();  let response;  try &#123;    // 리다이렉트 되는 페이지의 주소를 사용.    const url =      'http://www.thebell.co.kr/front/free/contents/news/article_view.asp?key=201807250100046030002891';    // 탭 옵션    const pageOption = &#123;      // waitUntil: 적어도 500ms 동안 두 개 이상의 네트워크 연결이 없으면 탐색이 완료된 것으로 간주합니다.      waitUntil: 'networkidle2',      // timeout: 20초 안에 새 탭의 주소로 이동하지 않으면 에러 발생      timeout: 20000    &#125;;    // 3. 새 탭에 뉴스 기사 주소를 입력해서 접속한다.    response = await page.goto(url, pageOption);  &#125; catch (error) &#123;    await page.close();    await browser.close();    console.error(error);    return;  &#125;  let html;  try &#123;    // 4. 웹페에지의 페이지 소스를 확인한다. =&gt; 페이지 소스 코드를 얻는다.    html = await response.text();  &#125; catch (error) &#123;    console.error(error);    return;  &#125; finally &#123;    // catch 구문에 return 이 존재해도 finally 구문은 실행 합니다.    // 6. 페이지 닫기    await page.close();    // 7. 브라우저 닫기    await browser.close();  &#125;  // 5. 페이지 소스에서 아래 속성 값을 가진 `&lt;meta&gt;` 태그의 `content` 속성 값을 추출한다.  const newsData = extractNewsData(html);  // 크롤링 결과  console.log(newsData);&#125;)();\n\n시나리오 순서와 달리 코드에서 5번이 가장 나중에 온 이유는 html 변수에 이미 데이터를 할당했기 때문에 먼저 브라우저를 종료해도 문제가 발생하지 않습니다.\n\npage.goto(url, pageOption) 함수에 리다이렉트 되는 url로 예시를 든 이유는 GET 요청 방법의 한계점을 해결 할 수 있기 때문입니다.\n\nBrowser option 브라우저를 띄울 때, 설정 할 수 있는 옵션 정보입니다. \n\nPage option 페이지를 띄울 때, 설정 할 수 있는 옵션 정보입니다.\n\n\n\nTips\nPage Event - 불필요한 리소스 막기\n어떤 리소스를 허용 또는 막을지를 설정하여 페이지 로드 시간을 단축 할 수 있습니다.뉴스를 크롤링 하는데 image, stylesheet, font같은 용량이 많은 리소스는 다운로드 시간이 오래 걸리기 때문에 시간 단축에 효과적입니다.\n12345678910111213141516171819202122const page = await browser.newPage();const blockResource = [  'image',   'script',   'stylesheet',   'xhr',   'font',   'other'];await page.setRequestInterception(true);page.on('request', req =&gt; &#123;  // 리소스 유형  const resource = req.resourceType();   if (blockResource.indexOf(resource) !== -1) &#123;    req.abort();  // 리소스 막기  &#125; else &#123;    req.continue(); // 리소스 허용하기  &#125;&#125;);\n\n\n\n\nPage Event - Window.alert 강제 끄기\n해당 페이지에 dialog 가 발생하면 해당 페이지만 정지 상태가 됩니다. 여러 페이지를 크롤링하는 상황에서 정지 상태로 내버려 두면, 페이지를 종료 할 수 없기 때문에 메모리 누적 문제가 발생합니다.dialog 를 강제로 끄면 페이지 옵션 timeout 시간 초과에 의해 페이지가 종료 됩니다.\n123456const page = await browser.newPage();page.on('dialog', async dialog =&gt; &#123;  console.log(`dialog message:' $&#123;dialog.message()&#125;`);  await dialog.dismiss();&#125;);\n\n\n\n\n성능 이슈 \n\nCPU, Memory 사용량\nHeadless browser 를 사용함으로써 개발은 확실히 편하지만, 컴퓨팅 자원을 어느정도 사용하기 때문에 제한된 컴퓨팅 자원으로 어떻게 효율적으로 사용할 지를 고민하셔야 합니다.\n\n크롤링 속도\n브라우저 객체를 생성하고 페이지를 객체를 생성하는데 아무리 컴퓨팅 성능이 좋다 하더라도 시간이 꽤 걸립니다. \n\n\n\n\n\n마치며…뉴스 메타 정보 수집 기능을 구현하면서 다양한 CASE 를 마주하였고 어떻게 풀어 나갈지에 대해 고민한 부분을 정리하였습니다. 이 글을 보신 분은 도움이 되셨으면 합니다. \n피드백은 언제나 환영합니다.","dateCreated":"2019-03-30T22:37:48+09:00","dateModified":"2019-04-02T13:15:42+09:00","datePublished":"2019-03-30T22:37:48+09:00","description":"이번 포스팅은 저희 회사 서비스 기업 관리 통합 솔루션 질링스 의 기능 중에 하나인 기업 뉴스 메타 정보 크롤링하는 방법에 대해 설명하려고 합니다.","headline":"[nodejs] puppeteer 뉴스 기사 메타 정보 크롤링","image":["thumbnail.png","cover.png"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/03/30/puppeteer/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/03/30/puppeteer/","keywords":"puppeteer, crawler, headless browser","thumbnailUrl":"thumbnail.png"}</script>
+    <meta name="description" content="headless browser 중에 하나인 nodejs puppeteer 라이브러리를 이용하여 뉴스 기사의 제목, 요약문, 썸네일의 정보를 수집 합니다.">
+<meta name="keywords" content="puppeteer,crawler,headless browser">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="[nodejs] puppeteer 뉴스 기사 메타 정보 크롤링">
+<meta property="og:url" content="https://devhaks.github.io/2019/03/30/puppeteer/index.html">
+<meta property="og:site_name" content="Devhaks 개발 저장소">
+<meta property="og:description" content="headless browser 중에 하나인 nodejs puppeteer 라이브러리를 이용하여 뉴스 기사의 제목, 요약문, 썸네일의 정보를 수집 합니다.">
+<meta property="og:locale" content="en">
+<meta property="og:updated_time" content="2019-04-02T04:15:42.524Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="[nodejs] puppeteer 뉴스 기사 메타 정보 크롤링">
+<meta name="twitter:description" content="headless browser 중에 하나인 nodejs puppeteer 라이브러리를 이용하여 뉴스 기사의 제목, 요약문, 썸네일의 정보를 수집 합니다.">
+    
+    
+        
+    
+
+    
+        <meta property="og:image" content="https://devhaks.github.io/2019/03/30/puppeteer/thumbnail.png"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/03/30/puppeteer/thumbnail.png" />
+    
+    
+    
+    <!--STYLES-->
+    <link rel="stylesheet" href="/assets/css/style-hvayrqlizwdi07rnnbeznu6bypqpoi1f8h9ogqeqwree2em57ycyb7kwyhtv.min.css">
+    <!--STYLES END-->
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-135461398-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-135461398-1');
+    </script>
+
+
+    
+</head>
+
+    <body>
+        
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+    
+
+<header id="header" data-behavior="5">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a class="header-title-link" href="/ ">Devhaks 개발 저장소</a>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
+    
+        
+            <a class="header-right-picture " href="/me">
+        
+        
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture">
+        
+        </a>
+    
+</header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>
+            <!-- Define author's picture -->
+
+
+    
+
+<nav id="sidebar" data-behavior="5">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a href="/#about">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture">
+                </a>
+                <h4 class="sidebar-profile-name">이종학</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>author.bio</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/ " title="Home">
+                    
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/all-categories" title="Categories">
+                    
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/all-tags" title="Tags">
+                    
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/all-archives" title="Archives">
+                    
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link open-algolia-search" href="#search" title="Search">
+                    
+                        <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Search</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="/me" title="About">
+                    
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                    
+                        <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">GitHub</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full" style="background-image:url('/2019/03/30/puppeteer/cover.png');" data-behavior="5">
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaOut
+                        ">
+                
+<article class="post">
+    
+    
+        <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            [nodejs] puppeteer 뉴스 기사 메타 정보 크롤링
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2019-03-30T22:37:48+09:00">
+	
+		    Mar 30, 2019
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/nodejs/">nodejs</a>, <a class="category-link" href="/categories/nodejs/javascript/">javascript</a>
+
+
+    
+</div>
+
+    
+</div>
+
+    
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <!-- excerpt -->
+<p>안녕하세요. 저는 현재 <b>기업 관리 통합 솔루션 <a href="https://www.zillinks.com" target="_blank" rel="noopener">질링스</a></b>의 SW 리더로서 시스템 관리 및 백앤드 개발을 담당하고 있습니다. 최근 서비스에서 기업의 <u>뉴스 요약문</u>을 수집해야 하는 이슈가 생겼습니다. 그러면 어떠한 과정을 거쳐 뉴스 요약문을 수집 했는지에 대해 글을 써보도록 하겠습니다. </p>
+<p>이 글은 단순히 기능 설명이 아닌 제가 경험한 지식을 녹여내려 쓴 것이므로 내용이 많을 수 있습니다. </p>
+<hr>
+<h2 id="목차"><a href="#목차" class="headerlink" title="목차"></a>목차</h2><ul>
+<li><a href="#배경">배경</a></li>
+<li><a href="#웹-페이지-크롤링-방법">웹 페이지 크롤링 방법</a><ul>
+<li>Method GET 요청<ul>
+<li>정적(static) 사이트</li>
+<li>동적(dynamic) 사이트</li>
+</ul>
+</li>
+<li>Headless browser 사용</li>
+</ul>
+</li>
+<li><a href="#시나리오-및-코드">시나리오 및 코드</a></li>
+<li><a href="#Tips">Tips</a></li>
+</ul>
+<hr>
+<h2 id="배경"><a href="#배경" class="headerlink" title="배경"></a>배경</h2><p>질링스는 기업의 정보를 쉽게 관리 할 수 있도록 지원합니다. 그 기능 중에 하나인 <b>기업 뉴스 관리</b> 기능이 있습니다. 질링스는 현재 사용자가 직접 뉴스를 관리 하지 않아도 기업의 뉴스를 주기적으로 수집하는 스케쥴러 서버를 통해 뉴스를 저장하고 있습니다. 이때 기본적으로 저장하는 데이터는 <u>주소, 제목, 언론사, 발행일자</u> 입니다. 따로 <u>기사 요약문</u>을 저장하지는 않았습니다.</p>
+<p>그런데 질링스 고객사인 <a href="http://www.enslpartners.com" target="_blank" rel="noopener">스타트업 엑셀러레이터 엔슬파트너스</a>가 질링스에서 수집한 뉴스를 엔슬파트너스 홈페이지에 보여주고 싶다는 needs 와 추가적으로 <u>기사 요약문</u>도 보여줄 수 있느냐는 얘기를 듣고 이 부분을 기획하고 개발하기로 결정하였습니다.<br>  <br></p>
+<ul>
+<li><p>개발 목적</p>
+<p>사용자가 뉴스 정보 쉽게 관리 할 수 있도록 지원</p>
+</li>
+<li><p>개발 목표</p>
+<p>국내 몇백개가 되는 언론사의 <b>뉴스 기사 메타 정보</b> 자동 수집</p>
+</li>
+<li><p>개발 사항 </p>
+<ol>
+<li>사용자측 기업 뉴스 관리 기능 강화<ul>
+<li>기존 방식 : 사용자가 직접 기사의 <u>주소, 제목, 언론사, 발행일자</u>를 기입해야함</li>
+<li>새로운 방식 : 기사의 주소 기입시, <u>제목, 언론사, 요약문</u> 자동 입력됨</li>
+</ul>
+</li>
+<li>스케쥴러 서버에서 요약문도 같이 수집하도록 개선</li>
+</ol>
+</li>
+</ul>
+<hr>
+<h2 id="웹-페이지-크롤링-방법"><a href="#웹-페이지-크롤링-방법" class="headerlink" title="웹 페이지 크롤링 방법"></a>웹 페이지 크롤링 방법</h2><p>웹 페이지를 크롤링하는 방법은 크게 2가지로 나눌 수 있습니다. </p>
+<ol>
+<li>Method GET 요청</li>
+<li>Headless browser 사용</li>
+</ol>
+<h4 id="1-Method-GET-요청"><a href="#1-Method-GET-요청" class="headerlink" title="1. Method GET 요청"></a>1. Method GET 요청</h4><p>Get 요청에도 Case 가 다른 경우가 있습니다. 웹 사이트가 어떤 유형으로 만들어진 것인지에 따라 응답 결과가 다릅니다. 간단히 Static vs Dynamaic 2가지 유형으로 나눌 수 있습니다. 기술적인 이해를 돕고자 2가지 유형의 결과와 함께 설명하겠습니다.<br>  <br></p>
+<ul>
+<li><p>정적(Static) 사이트</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// linux cmd 에서 실행</span><br><span class="line">$ curl https://devhaks.github.io</span><br></pre></td></tr></table></figure>
+<p>위 요청 결과는 아래 링크의 내용과 같습니다. 이 결과는 웹페이지의 콘텐츠가 미리 생성된 것을 랜더링 해주기 때문입니다.<br><a href="https://github.com/devhaks/devhaks.github.io/blob/master/index.html" target="_blank" rel="noopener">https://github.com/devhaks/devhaks.github.io/blob/master/index.html</a></p>
+<p><br></p>
+</li>
+<li><p>동적(Dynamic) 사이트</p>
+<p>Demo: <a href="http://fiddle.jshell.net/leejognhak/oe0x2r8u/show/#/user/foo" target="_blank" rel="noopener">http://fiddle.jshell.net/leejognhak/oe0x2r8u/show/#/user/foo</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// linux cmd 에서 실행</span><br><span class="line">$ curl http://fiddle.jshell.net/leejognhak/oe0x2r8u/show/<span class="comment">#/user/foo</span></span><br></pre></td></tr></table></figure>
+<p>응답 결과</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE HTML&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">    ...(생략)</span><br><span class="line">  <span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">"wrapper"</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">header</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">h1</span>&gt;</span><span class="tag">&lt;<span class="name">a</span> <span class="attr">href</span>=<span class="string">"//jsfiddle.net/leejognhak/oe0x2r8u/?utm_source=website&amp;amp;utm_medium=embed&amp;amp;utm_campaign=oe0x2r8u"</span> <span class="attr">target</span>=<span class="string">"_blank"</span>&gt;</span>Edit in JSFiddle<span class="tag">&lt;/<span class="name">a</span>&gt;</span><span class="tag">&lt;/<span class="name">h1</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">"actions"</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">ul</span> <span class="attr">class</span>=<span class="string">"normalRes"</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;<span class="name">li</span> <span class="attr">class</span>=<span class="string">&amp;quot;active&amp;quot;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">a</span> <span class="attr">data-trigger-type</span>=<span class="string">"result"</span> <span class="attr">href</span>=<span class="string">"#Result"</span>&gt;</span>Result<span class="tag">&lt;/<span class="name">a</span>&gt;</span></span><br><span class="line">              <span class="tag">&lt;/<span class="name">li</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;/<span class="name">ul</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"hl"</span>&gt;</span><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;/<span class="name">header</span>&gt;</span></span><br><span class="line"></span><br><span class="line">      <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">"tabs"</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"tCont result active"</span> <span class="attr">id</span>=<span class="string">"result"</span>&gt;</span><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">          <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">"text/javascript"</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">            window.addEventListener('load', function()&#123;</span></span><br><span class="line"><span class="undefined">              if (typeof(EmbedManager) === undefined)&#123;</span></span><br><span class="line"><span class="undefined">                  EmbedManager.loadResult();</span></span><br><span class="line"><span class="undefined">              &#125;</span></span><br><span class="line"><span class="undefined">            &#125;, false);</span></span><br><span class="line"><span class="undefined">          </span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>데모용 페이지를 열어보면 각 페이지 별로 <code>Home, Profile, Posts</code> 단어가 존재 합니다. 위의 페이지 소스 결과를 보면 body 태그 안에는 내용이 없습니다. 즉, 동적 사이트는 정적 사이트 처럼 미리 만들어진 콘텐츠를 보여주는 것이 아니라 필요할 때마다 콘텐츠를 body 태그에 뿌려주는 것입니다. 예로 쇼핑몰 사이트에서는 ‘더 보기’ 버튼을 누르면 상품들이 더 나오는 것처럼 말이죠.</p>
+<p><br></p>
+</li>
+<li><p>GET 요청 방법의 한계점</p>
+<ul>
+<li><p>한글 깨짐<br>국내 언론사의 뉴스 기사를 예로 들겠습니다.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// linux cmd 에서 실행</span><br><span class="line">$ curl https://www.mk.co.kr/news/it/view/2019/03/191946/</span><br></pre></td></tr></table></figure>
+<p>응답 결과</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE html&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span> <span class="attr">lang</span>=<span class="string">"ko"</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">title</span>&gt;</span>[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���<span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">"Content-Type"</span> <span class="attr">content</span>=<span class="string">"text/html; charset=euc-kr"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">"X-UA-Compatible"</span> <span class="attr">content</span>=<span class="string">"IE=edge,chrome=1"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">property</span>=<span class="string">"article:author"</span> <span class="attr">content</span>=<span class="string">"�ſ���"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">"apple-mobile-web-app-title"</span> <span class="attr">content</span>=<span class="string">"mk"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">'stylesheet'</span> <span class="attr">type</span>=<span class="string">'text/css'</span> <span class="attr">href</span>=<span class="string">'https://common.mk.co.kr/common/css/2015/news_2015.css'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">'stylesheet'</span> <span class="attr">type</span>=<span class="string">'text/css'</span> <span class="attr">href</span>=<span class="string">'https://common.mk.co.kr/common/css/2019/error.css'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">'shortcut icon'</span> <span class="attr">href</span>=<span class="string">'//img.mk.co.kr/main/2015/mk_new/favicon_new.ico'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">'canonical'</span> <span class="attr">href</span>=<span class="string">'https://www.mk.co.kr/news/it/view/2019/03/191946/'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">'amphtml'</span> <span class="attr">href</span>=<span class="string">'http://m.mk.co.kr/news/amp/headline/2019/191946?PageSpeed=off'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">'alternate'</span> <span class="attr">media</span>=<span class="string">'only screen and ( max-width: 640px)'</span> <span class="attr">href</span>=<span class="string">'http://m.mk.co.kr/news/it/2019/191946/'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">'title'</span> <span class="attr">content</span>=<span class="string">'[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����? - ���ϰ���'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">'description'</span> <span class="attr">content</span>=<span class="string">'[ī�崺��] AI�� ���躸�� �ô롦�����ɷ� ���� 1����?, �ۼ���-�ſ���, ����-it, ����-LG CNS�� ������ 12�� ��������(KorQuAD��The Korean Question Answering Dataset)������ ���� ù AI(�ΰ�����)�� ������ ������. �����ڵ��� �ڻ� AI ���α׷� �ɷ��� ���������� ������ �� �ֵ��� ��������. AI�� �����ڰ�'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">'classification'</span> <span class="attr">content</span>=<span class="string">'it'</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">property</span>=<span class="string">'article:published'</span>  <span class="attr">content</span>=<span class="string">'2019-03-29'</span> /&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">    ...(생략)</span><br><span class="line">  <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>브라우저로 접속하면 한글로된 글이 보이지만, GET 요청 결과는 한글이 깨진 상태입니다.<br><br></p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">"Content-Type"</span> <span class="attr">content</span>=<span class="string">"text/html; charset=euc-kr"</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>그 이유는 위 소스코드의 <code>charset</code>이 <code>euc-kr</code> 이기 때문입니다. 현대에 만들어진 사이트는 대부분 <code>utf-8</code>이지만 오래된 홈페이지의 경우 <code>euc-kr</code>인 경우가 있습니다.<br><br></p>
+</li>
+<li><p>페이지 리다이렉트</p>
+<p>이 경우는 url 로 접속 했는데, 다른 url 주소로 튕기는 것입니다. 리다이렉트가 발생되는 시점은 해당 사이트가 어떻게 처리 했는가에 따라 다릅니다. 서버에서 처리 했는지 또는 브라우저의 자바스크립트에 의해 처리 되었는지 파악하기에 무리 입니다.  </p>
+</li>
+</ul>
+</li>
+</ul>
+<div class="alert info"><p>GET 요청 방법으로 웹페이지 크롤링 하려는 경우, <u>정적 사이트 &amp; 콘텐츠가 깨지지 않는 사이트 &amp; 리다이렉트 되지 않는 페이지</u>를 대상으로 하시는 것을 권장합니다.</p>
+</div>
+<h4 id="2-Headless-browser-사용"><a href="#2-Headless-browser-사용" class="headerlink" title="2. Headless browser 사용"></a>2. Headless browser 사용</h4><p>앞서 GET 요청 방법으로는 기능을 개발하는데 한계점이 있습니다. 그 한계점을 극복하고자 두번째 방법을 채택하였습니다.<br>  <br></p>
+<ul>
+<li><p>Headless browser<br>우리가 일상적으로 사용하는 IE, 크롬, 사파리 등의 브라우저는 사용하기 쉽게 GUI(Graphical User Interface) 를 제공합니다. 그러면 Headless 란 의미는 단순히 GUI 를 지원하지 않는다는 것입니다. GUI 를 제공하지 않으면 어떻게 조작을 할 수 있지 라는 의문은 프로그래밍을 통해서 가능합니다. 사용자가 브라우저를 열고 마우스 클릭이나 타이핑 등의 행동을 똑같이 프로그래밍으로 자동화 할 수 있습니다.<br><br></p>
+</li>
+<li><p>Puppeteer </p>
+<p><a href="https://github.com/GoogleChrome/puppeteer" target="_blank" rel="noopener">Puppeteer</a> 는 구글 Chrome 또는 Chromium 브라우저를 조작할 수 있도록 도와주는 <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs</a> 의 패키지 라이브러리 입니다. </p>
+<p>Puppeteer 로 할 수 있는 기능은 다음과 같습니다.</p>
+<ul>
+<li><b>SPA (단일 페이지 응용 프로그램)를 크롤링</b>하고 사전 렌더링 된 콘텐츠 (즉, “SSR”(서버 측 렌더링))를 생성합니다.</li>
+<li>페이지의 <b>스크린 샷 및 PDF 생성</b></li>
+<li>양식 제출, UI 테스트, 키보드 입력 등을 자동화 합니다.</li>
+</ul>
+<p>이외 더 많은 기능은 <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md" target="_blank" rel="noopener">Puppeteer API 문서</a>를 참고하시기 바랍니다.<br><br></p>
+</li>
+<li><p>설치</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm i cheerio puppeteer</span><br></pre></td></tr></table></figure>
+<p><a href="https://github.com/cheeriojs/cheerio" target="_blank" rel="noopener">cheerio</a> 는 텍스트로된 html 을 <a href="https://developer.mozilla.org/ko/docs/Gecko_DOM_Reference/%EC%86%8C%EA%B0%9C" target="_blank" rel="noopener">DOM</a>으로 파싱해주는 라이브러리 입니다. 파싱 후에는 jQuery 처럼 사용 할 수 있습니다.</p>
+<p>puppeteer 를 설치하려면 각 OS별로 <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md#chrome-headless-doesnt-launch" target="_blank" rel="noopener">의존성 패키지를 설치</a> 해야합니다.<br>개발용으로 사용하는 PC에는 이미 패키지가 설치되어 있을 수 있기 때문에 puppeteer 설치 오류가 발생하지 않을 수 있습니다.<br>만약 오류가 발생할 경우, 아래 경로로 찾아갑니다. (디렉토리명이 다를 수 있습니다.)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ <span class="built_in">cd</span> project/node_modules/puppeteer/.<span class="built_in">local</span>-chromium/linux-624492/chrome-linux</span><br><span class="line"></span><br><span class="line">$ ldd chrome | grep not <span class="comment"># 설치되지 않은 패키지 목록을 출력합니다.</span></span><br><span class="line"><span class="comment">#Output not install package list</span></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="comment"># ubuntu 패키지 설치 예시</span></span><br><span class="line">$ sudo apt-get install libatspi-dev libatspi2.0-0 libgtk-3-0</span><br></pre></td></tr></table></figure>
+<div class="alert info"><p>Puppeteer를 설치하면 API가 작동하는 Chromium의 최신 버전 (~ 170MB Mac, ~ 282MB Linux, ~ 280MB Win)이 다운로드됩니다.</p>
+</div>
+<div class="alert warning"><p>Puppeteer는 노드 v6.4.0 이상을 필요로하지만 설명할 코드의 예제는 노드 v7.6.0 이상에서만 지원되는 async / await를 사용합니다.</p>
+</div>
+</li>
+</ul>
+<hr>
+<h3 id="시나리오-및-코드"><a href="#시나리오-및-코드" class="headerlink" title="시나리오 및 코드"></a>시나리오 및 코드</h3><p>기사의 메타 정보를 사람이 수집하는 것처럼 puppeteer 를 통해 똑같이 수집 하도록 순서를 나열 해보겠습니다.</p>
+<ol>
+<li>브라우저를 띄운다.</li>
+<li>페이지를 띄운다. (브라우저와 동시에 같이 띄워짐)</li>
+<li>페이지에 뉴스 기사 주소를 입력해서 접속한다.</li>
+<li>웹페에지의 페이지 소스를 확인한다.</li>
+<li>페이지 소스에서 아래 속성 값을 가진 <code>&lt;meta&gt;</code> 태그의 <code>content</code> 속성 값을 추출한다.<ul>
+<li>제목: title, og:title, twitter:title</li>
+<li>요약문: description, og:description, twitter:description</li>
+<li>썸네일: og:image, twitter:image</li>
+</ul>
+</li>
+<li>페이지 닫기</li>
+<li>브라우저 닫기</li>
+</ol>
+<p>아래 내용은 질링스 서비스에서 가져온 뉴스 자동 수집 코드의 일부분 입니다.</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> puppeteer = <span class="built_in">require</span>(<span class="string">'puppeteer'</span>);</span><br><span class="line"><span class="keyword">const</span> cheerio = <span class="built_in">require</span>(<span class="string">'cheerio'</span>);</span><br><span class="line"></span><br><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * @description 기사의 메타 정보를 추출합니다.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * @summary 제목, 요약문, 썸네일 정보를 추출합니다.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * @params &#123;string&#125; html - 크롤링한 페이지 html</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * @returns &#123;object&#125;</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">function</span> <span class="title">extractNewsData</span>(<span class="params">html</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> newsData = &#123;</span><br><span class="line">      title: <span class="literal">null</span>,</span><br><span class="line">      description: <span class="literal">null</span>,</span><br><span class="line">      image: <span class="literal">null</span></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// cheerio 라이브러리를 사용하여 html을 DOM 으로 파싱합니다.</span></span><br><span class="line">    <span class="keyword">const</span> $ = cheerio.load(html);</span><br><span class="line">    <span class="comment">// meta 태그만 추출합니다</span></span><br><span class="line">    <span class="keyword">const</span> $metaList = $(<span class="string">'meta'</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> index = <span class="number">0</span>; index &lt; $metaList.length; index += <span class="number">1</span>) &#123;</span><br><span class="line">      <span class="keyword">const</span> element = cheerio($metaList[index]);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// meta 태그의 content 속성 값을 추출합니다.</span></span><br><span class="line">      <span class="keyword">let</span> content = element.attr(<span class="string">'content'</span>);</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (!content || !content.trim()) &#123;</span><br><span class="line">        <span class="keyword">continue</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      content = content.trim();</span><br><span class="line"></span><br><span class="line">      <span class="comment">// meta 태그의  property 속성 값을 추출합니다.</span></span><br><span class="line">      <span class="keyword">let</span> propertyAttr = element.attr(<span class="string">'property'</span>);</span><br><span class="line">      <span class="keyword">if</span> (propertyAttr) &#123;</span><br><span class="line">        propertyAttr = propertyAttr.toLocaleLowerCase();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 추출할 property 에 따라 newsData 에 할당합니다.</span></span><br><span class="line">      <span class="keyword">switch</span> (propertyAttr) &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'og:title'</span>:</span><br><span class="line">          newsData.title = content;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'og:description'</span>:</span><br><span class="line">          newsData.description = content;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'og:image'</span>:</span><br><span class="line">          newsData.image = content;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// meta 태그의  name 속성 값을 추출합니다.</span></span><br><span class="line">      <span class="keyword">let</span> nameAttr = element.attr(<span class="string">'name'</span>);</span><br><span class="line">      <span class="keyword">if</span> (nameAttr) &#123;</span><br><span class="line">        nameAttr = nameAttr.toLocaleLowerCase();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 추출할 name 에 따라 newsData 에 할당합니다.</span></span><br><span class="line">      <span class="keyword">switch</span> (nameAttr) &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'title'</span>:</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'twitter:title'</span>:</span><br><span class="line">          newsData.title = content;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'description'</span>:</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'twitter:description'</span>:</span><br><span class="line">          newsData.description = content;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="string">'twitter:image'</span>:</span><br><span class="line">          newsData.image = content;</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="comment">// end for</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> newsData;</span><br><span class="line">  &#125; <span class="comment">// end extractNewsDate()</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 브라우저 옵션 설정</span></span><br><span class="line">  <span class="keyword">const</span> browserOption = &#123;</span><br><span class="line">    slowMo: <span class="number">500</span>, <span class="comment">// 디버깅용으로 퍼핏티어 작업을 지정된 시간(ms)만큼 늦춥니다.</span></span><br><span class="line">    headless: <span class="literal">false</span> <span class="comment">// 디버깅용으로 false 지정하면 브라우저가 자동으로 열린다.</span></span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 1. 브라우저를 띄운다. =&gt; 브라우저 객체 생성</span></span><br><span class="line">  <span class="keyword">const</span> browser = <span class="keyword">await</span> puppeteer.launch(browserOption);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 2. 페이지를 띄운다. =&gt; 페이지 객체 생성</span></span><br><span class="line">  <span class="keyword">const</span> page = <span class="keyword">await</span> browser.newPage();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">let</span> response;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">// 리다이렉트 되는 페이지의 주소를 사용.</span></span><br><span class="line">    <span class="keyword">const</span> url =</span><br><span class="line">      <span class="string">'http://www.thebell.co.kr/front/free/contents/news/article_view.asp?key=201807250100046030002891'</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 탭 옵션</span></span><br><span class="line">    <span class="keyword">const</span> pageOption = &#123;</span><br><span class="line">      <span class="comment">// waitUntil: 적어도 500ms 동안 두 개 이상의 네트워크 연결이 없으면 탐색이 완료된 것으로 간주합니다.</span></span><br><span class="line">      waitUntil: <span class="string">'networkidle2'</span>,</span><br><span class="line">      <span class="comment">// timeout: 20초 안에 새 탭의 주소로 이동하지 않으면 에러 발생</span></span><br><span class="line">      timeout: <span class="number">20000</span></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 새 탭에 뉴스 기사 주소를 입력해서 접속한다.</span></span><br><span class="line">    response = <span class="keyword">await</span> page.goto(url, pageOption);</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    <span class="keyword">await</span> page.close();</span><br><span class="line">    <span class="keyword">await</span> browser.close();</span><br><span class="line"></span><br><span class="line">    <span class="built_in">console</span>.error(error);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">let</span> html;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">// 4. 웹페에지의 페이지 소스를 확인한다. =&gt; 페이지 소스 코드를 얻는다.</span></span><br><span class="line">    html = <span class="keyword">await</span> response.text();</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    <span class="built_in">console</span>.error(error);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    <span class="comment">// catch 구문에 return 이 존재해도 finally 구문은 실행 합니다.</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 6. 페이지 닫기</span></span><br><span class="line">    <span class="keyword">await</span> page.close();</span><br><span class="line">    <span class="comment">// 7. 브라우저 닫기</span></span><br><span class="line">    <span class="keyword">await</span> browser.close();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 5. 페이지 소스에서 아래 속성 값을 가진 `&lt;meta&gt;` 태그의 `content` 속성 값을 추출한다.</span></span><br><span class="line">  <span class="keyword">const</span> newsData = extractNewsData(html);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 크롤링 결과</span></span><br><span class="line">  <span class="built_in">console</span>.log(newsData);</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+<ul>
+<li><p>시나리오 순서와 달리 코드에서 5번이 가장 나중에 온 이유는 html 변수에 이미 데이터를 할당했기 때문에 먼저 브라우저를 종료해도 문제가 발생하지 않습니다.</p>
+</li>
+<li><p><code>page.goto(url, pageOption)</code> 함수에 리다이렉트 되는 url로 예시를 든 이유는 GET 요청 방법의 한계점을 해결 할 수 있기 때문입니다.</p>
+</li>
+<li><p><a href="https://github.com/GoogleChrome/puppeteer/blob/v1.14.0/docs/api.md#puppeteerlaunchoptions" target="_blank" rel="noopener">Browser option</a> 브라우저를 띄울 때, 설정 할 수 있는 옵션 정보입니다. </p>
+</li>
+<li><p><a href="https://github.com/GoogleChrome/puppeteer/blob/v1.14.0/docs/api.md#pagegotourl-options" target="_blank" rel="noopener">Page option</a> 페이지를 띄울 때, 설정 할 수 있는 옵션 정보입니다.</p>
+</li>
+</ul>
+<hr>
+<h3 id="Tips"><a href="#Tips" class="headerlink" title="Tips"></a>Tips</h3><ul>
+<li><p><b>Page Event</b> - 불필요한 리소스 막기</p>
+<p>어떤 리소스를 허용 또는 막을지를 설정하여 페이지 로드 시간을 단축 할 수 있습니다.<br>뉴스를 크롤링 하는데 <code>image, stylesheet, font</code>같은 용량이 많은 리소스는 다운로드 시간이 오래 걸리기 때문에 시간 단축에 효과적입니다.</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> page = <span class="keyword">await</span> browser.newPage();</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> blockResource = [</span><br><span class="line">  <span class="string">'image'</span>, </span><br><span class="line">  <span class="string">'script'</span>, </span><br><span class="line">  <span class="string">'stylesheet'</span>, </span><br><span class="line">  <span class="string">'xhr'</span>, </span><br><span class="line">  <span class="string">'font'</span>, </span><br><span class="line">  <span class="string">'other'</span></span><br><span class="line">];</span><br><span class="line"></span><br><span class="line"><span class="keyword">await</span> page.setRequestInterception(<span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line">page.on(<span class="string">'request'</span>, req =&gt; &#123;</span><br><span class="line">  <span class="comment">// 리소스 유형</span></span><br><span class="line">  <span class="keyword">const</span> resource = req.resourceType(); </span><br><span class="line">  <span class="keyword">if</span> (blockResource.indexOf(resource) !== <span class="number">-1</span>) &#123;</span><br><span class="line">    req.abort();  <span class="comment">// 리소스 막기</span></span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    req.continue(); <span class="comment">// 리소스 허용하기</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><br></p>
+</li>
+</ul>
+<ul>
+<li><p><b>Page Event</b> - Window.alert 강제 끄기</p>
+<p>해당 페이지에 dialog 가 발생하면 해당 페이지만 정지 상태가 됩니다. 여러 페이지를 크롤링하는 상황에서 정지 상태로 내버려 두면, 페이지를 종료 할 수 없기 때문에 메모리 누적 문제가 발생합니다.<br>dialog 를 강제로 끄면 페이지 옵션 <code>timeout</code> 시간 초과에 의해 페이지가 종료 됩니다.</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> page = <span class="keyword">await</span> browser.newPage();</span><br><span class="line"></span><br><span class="line">page.on(<span class="string">'dialog'</span>, <span class="keyword">async</span> dialog =&gt; &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">`dialog message:' <span class="subst">$&#123;dialog.message()&#125;</span>`</span>);</span><br><span class="line">  <span class="keyword">await</span> dialog.dismiss();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><br></p>
+</li>
+</ul>
+<ul>
+<li><p>성능 이슈 </p>
+<ul>
+<li><p>CPU, Memory 사용량</p>
+<p>Headless browser 를 사용함으로써 개발은 확실히 편하지만, 컴퓨팅 자원을 어느정도 사용하기 때문에 제한된 컴퓨팅 자원으로 어떻게 효율적으로 사용할 지를 고민하셔야 합니다.</p>
+</li>
+<li><p>크롤링 속도</p>
+<p>브라우저 객체를 생성하고 페이지를 객체를 생성하는데 아무리 컴퓨팅 성능이 좋다 하더라도 시간이 꽤 걸립니다. </p>
+</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="마치며…"><a href="#마치며…" class="headerlink" title="마치며…"></a>마치며…</h3><p>뉴스 메타 정보 수집 기능을 구현하면서 다양한 CASE 를 마주하였고 어떻게 풀어 나갈지에 대해 고민한 부분을 정리하였습니다. 이 글을 보신 분은 도움이 되셨으면 합니다. </p>
+<p>피드백은 언제나 환영합니다.</p>
+            
+
+        </div>
+    </div>
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br>
+                
+    <a class="tag tag--primary tag--small t-link" href="/tags/crawler/">crawler</a> <a class="tag tag--primary tag--small t-link" href="/tags/headless-browser/">headless browser</a> <a class="tag tag--primary tag--small t-link" href="/tags/puppeteer/">puppeteer</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <a class="post-action-btn btn btn--disabled">
+                
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/02/16/code-build/" data-tooltip="[AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현" aria-label="NEXT: [AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현">
+                
+                    <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/03/30/puppeteer/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/03/30/puppeteer/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://plus.google.com/share?url=https://devhaks.github.io/2019/03/30/puppeteer/" title="Share on Google+">
+                    <i class="fab fa-google-plus" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+                <div id="disqus_thread"></div>
+<script>
+
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://devhaks.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+            
+        
+    </div>
+</article>
+
+
+                <footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2019 이종학. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="5">
+                    <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <a class="post-action-btn btn btn--disabled">
+                
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/02/16/code-build/" data-tooltip="[AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현" aria-label="NEXT: [AWS] CodeBuild &amp; S3 를 이용한 정적 사이트 구현">
+                
+                    <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/03/30/puppeteer/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/03/30/puppeteer/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://plus.google.com/share?url=https://devhaks.github.io/2019/03/30/puppeteer/" title="Share on Google+">
+                    <i class="fab fa-google-plus" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="5">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/03/30/puppeteer/">
+                        <i class="fab fa-facebook" aria-hidden="true"></i><span>Share on Facebook</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/03/30/puppeteer/">
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://plus.google.com/share?url=https://devhaks.github.io/2019/03/30/puppeteer/">
+                        <i class="fab fa-google-plus" aria-hidden="true"></i><span>Share on Google+</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture">
+        
+            <h4 id="about-card-name">이종학</h4>
+        
+            <!-- <div id="about-card-bio"><p>author.bio</p>
+</div> -->
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br>
+                <p>Software developer</p>
+
+            </div>
+        
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/images/cover.jpg');"></div>
+        <!--SCRIPTS-->
+<script src="/assets/js/script-blbisryega5j71rhknihaxpaao2saxn2xzyopjbn07zwogkjpijgk3bhtaqb.min.js"></script>
+<!--SCRIPTS END-->
+
+    
+        <script>
+             var disqus_config = function () {
+                 this.page.url = 'https://devhaks.github.io/2019/03/30/puppeteer/';
+                 
+                    this.page.identifier = '2019/03/30/puppeteer/';
+                 
+             };
+            (function() {
+                var d = document, s = d.createElement('script');
+                var disqus_shortname = 'devhaks';
+                s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+    
+
+
+
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
+    </body>
+</html>
