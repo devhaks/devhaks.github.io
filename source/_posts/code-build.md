@@ -1,5 +1,5 @@
 ---
-title: AWS CodeBuild & S3 를 이용한 정적 사이트 구현
+title: '[AWS] CodeBuild & S3 를 이용한 정적 사이트 구현'
 date: 2019-02-16 22:47:00
 description: AWS CodeBuild 을 소개하고 Build 과정을 이해하기 위해 실습 합니다.
 tags:
@@ -10,9 +10,10 @@ categories:
 thumbnailImage: thumbnail.png
 thumbnailImagePosition: left
 autoThumbnailImage: yes
-coverSize: partial
+coverSize: full
 coverMeta: out
 coverImage: cover.jpg
+
 ---
 
 이번 포스팅은 개발자들에게 자동화의 길에 한 발자국 가까워 지도록 AWS 에서 제공하는 서비스인 [CodeBuild](https://aws.amazon.com/ko/codebuild/) 에 대해서 소개합니다.

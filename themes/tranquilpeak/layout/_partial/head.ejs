@@ -145,25 +145,25 @@
         <meta class="swiftype" name="image" data-type="enum" content="<%= resolve_asset_url(page.path, page.thumbnailImage) %>" />
     <% } %>
     
+    <% if (page.coverImage && page.coverImage.length) { %>
+        <meta property="og:image" content="<%= resolve_asset_url(page.path, page.coverImage) %>"/>
+        <meta class="swiftype" name="image" data-type="enum" content="<%= resolve_asset_url(page.path, page.coverImage) %>" />
+    <% } %>
+    
     <% if (theme.gravatar_email) { %>
         <meta property="og:image" content="<%- gravatar(theme.gravatar_email, 640) %>"/>
     <% } else if (theme.author.picture) { %>
         <meta property="og:image" content="<%= resolve_asset_url(theme.image_dir, theme.author.picture) %>"/>
     <% } %>
     
-    
-    <% if (page.coverImage && page.coverImage.length) { %>
-        <meta property="og:image" content="<%= resolve_asset_url(page.path, page.coverImage) %>"/>
-        <meta class="swiftype" name="image" data-type="enum" content="<%= resolve_asset_url(page.path, page.coverImage) %>" />
-    <% } %>
     <% if (photos && photos.length) { %>
         <% photos.forEach(function(photo) { %>
-            <meta property="og:image" content="<%= photo %>" />
-            <meta class="swiftype" name="image" data-type="enum" content="<%= photo %>" />
+            <!-- <meta property="og:image" content="<%= photo %>" /> -->
+            <!-- <meta class="swiftype" name="image" data-type="enum" content="<%= photo %>" /> -->
         <% }) %>
     <% } %>
     <!--STYLES-->
-    <%- css('assets/css/style-nbf6qxh9emtybc15ezpiiviptogafn2cnirrwtbj5jtkaaqeoqwxkurl4pz2.min.css') %>
+    <%- css('assets/css/style-jtzj4f0bpl4hqs9fei6sg1itrf6mgz9qgpygvrxf5zccavdzjfrgexyexm6p.min.css') %>
     <!--STYLES END-->
     <%- partial('google-analytics') %>
     <%- partial('baidu-analytics') %>
