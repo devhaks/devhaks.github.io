@@ -1,7 +1,6 @@
 ---
 layout: title
 title: 웹 서버 개발 Session 전략 
-draft: true
 date: 2019-04-20 14:32:01
 description: 웹 서버 개발에 사용자를 추적하기 위한 Session 이 서비스 환경에 따라 어떻게 관리해야 하는지 설명합니다.
 
