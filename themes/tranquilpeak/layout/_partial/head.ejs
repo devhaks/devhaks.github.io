@@ -126,11 +126,7 @@
         <link rel="alternate" type="application/atom+xml" title="RSS" href="<%- url_for(config.feed.path) %>">
     <% } %>
     <%- json_ld() %>
-    <%- open_graph({
-        type: 'blog',
-        twitter_id: theme.author.twitter,
-        fb_app_id: theme.fb_app_id
-    }) %>
+    
     <% if (publisher) { %>
         <link rel="publisher" href="https://plus.google.com/<%= publisher %>"/>
     <% } %>
@@ -158,12 +154,20 @@
     
     <% if (photos && photos.length) { %>
         <% photos.forEach(function(photo) { %>
-            <!-- <meta property="og:image" content="<%= photo %>" /> -->
-            <!-- <meta class="swiftype" name="image" data-type="enum" content="<%= photo %>" /> -->
+            <meta property="og:image" content="<%= photo %>" />
+            <meta class="swiftype" name="image" data-type="enum" content="<%= photo %>" />
         <% }) %>
     <% } %>
+
+    <%- open_graph({
+        type: 'blog',
+        twitter_id: theme.author.twitter,
+        fb_app_id: theme.fb_app_id
+    }) %>
+
+
     <!--STYLES-->
-    <%- css('assets/css/style-jtzj4f0bpl4hqs9fei6sg1itrf6mgz9qgpygvrxf5zccavdzjfrgexyexm6p.min.css') %>
+    <%- css('assets/css/style-gyklwomtlzamm8hut8hcpqrybqljadezj5zngtuc4ih5y8higblsjza0iuag.min.css') %>
     <!--STYLES END-->
     <%- partial('google-analytics') %>
     <%- partial('baidu-analytics') %>

@@ -1,25 +1,23 @@
 ---
 layout: title
-title: 웹 서버 개발 Session 전략 
-date: 2019-04-20 14:32:01
-description: 웹 서버 개발에 사용자를 추적하기 위한 Session 이 서비스 환경에 따라 어떻게 관리해야 하는지 설명합니다.
-
+title: 웹 서버 개발의 Session 전략 
+date: 2019-04-20 23:32:01
+description: 웹 서버 개발에 Session 의 문제점과 서비스 환경에 따른 전략에 대해 설명합니다.
 tags:
  - session
  - cookie
 categories:
  - Server
  - Web
-
 thumbnailImage: thumbnail.png
 thumbnailImagePosition: left
 autoThumbnailImage: yes
 coverSize: full
-coverMeta: out
+coverMeta: in
 coverImage: cover.jpg
 ---
 
-이번 포스팅은 웹 서버 개발에 <b>Session</b>이 <u>서비스 환경</u>에 따라 어떻게 관리해야 하는지를 설명합니다.
+이번 포스팅은 웹 서버 개발에 Session 의 문제점과 서비스 환경에 따른 전략 대해 설명합니다.
 
 <!-- excerpt -->
 
@@ -121,7 +119,7 @@ router.use("/session", (req, res) => {
 
 http://localhost:3030/session 로 접속해서 메모리에 Session을 저장 하겠습니다.
  
-첫번째 클라이언트가 요청 했을 때, Cookie는 없을 것이고 서버는 Cookie가 없음을 인지하고 메모리에 Session을 저장하고 클라이언트로 전달합니다. 응답 받은 클라이언트는 Cookie를 저장합니다. 
+첫번째 클라이언트가 요청 했을 때, Cookie는 없고 서버는 Cookie가 없음을 인지하고 메모리에 Session을 저장하고 클라이언트로 전달합니다. 응답 받은 클라이언트는 Cookie를 저장합니다. 
 ```json
  // 첫번째 접속한 경우
 {
@@ -212,6 +210,8 @@ mYCHWOju_gFEiGM_tvxBvi2FtsVdepju.json (sessionId 값이 파일명이 됨.)
 
 {% image fancybox center clear group:travel example1.png "로드 밸런서에 의한 트래픽 분산" %}
 
+
+
 사용자의 급증으로 서버를 2대로 늘렸습니다. 기존 서버는 server_1, 새로운 서버는 server_2 입니다. 사용자는 로드 밸런서에 의해 분할되어 접속하게 됩니다.
 
 서버를 늘리기 전에 사용자는 온라인 사이트에 물품을 장바구니에 넣었습니다. 서버의 Session 파일에는 사용자의 장바구니 정보가 저장되어 있습니다. 
@@ -234,11 +234,15 @@ mYCHWOju_gFEiGM_tvxBvi2FtsVdepju.json (sessionId 값이 파일명이 됨.)
 
 위 그림은 app 서버는 2개이고 DB 서버는 1개인 상황입니다.
 
-사용자는 회원 가입을 하고 로그인을 합니다. DB 에는 사용자 정보를 저장하고 더 이상 세션으로 사용자 정보를 저장할 필요가 없습니다. 로그인을 통해 장바구니에 상품을 담는 것도 세션 대신에 DB에 저장하면 동일 유저의 여러 디바이스에서 로그인만 하면 내 장바구니 정보는 DB에서 불러오기만 하면 됩니다. 
+사용자는 회원 가입을 하고 로그인을 합니다. DB 에는 사용자 정보를 저장하고 더 이상 Session으로 사용자 정보를 저장할 필요가 없습니다. 로그인을 통해 장바구니에 상품을 담는 것도 Session 대신에 DB에 저장하면 동일 유저의 여러 디바이스에서 로그인만 하면 내 장바구니 정보는 DB에서 불러오기만 하면 됩니다. 
 
-그러면 '굳이 세션을 DB 에 저장할 필요가 없지 않나?' 라는 생각이 하실겁니다. 세션의 역할은 사용자의 정보를 저장하는 것 이외에 생명주기를 설정할 수 있습니다. 쉽게 말해서 로그인을 유지하기 위한 시간을 설정 할 수 있습니다. 
+그러면 '굳이 Session을 DB 에 저장할 필요가 없지 않나?' 라는 생각이 하실겁니다. Session의 역할은 사용자의 정보를 저장하는 것 이외에 생명주기를 설정할 수 있습니다. 쉽게 말해서 로그인을 유지하기 위한 시간을 설정 할 수 있습니다. 
 
-세션을 DB 로 관리하는 구현 방법에 대해서는 개발 환경마다 다르므로 생략하겠습니다.
+Session을 DB 로 관리하는 구현 방법을 설명하기에는 개발 환경마다 차이가 있으므로 대신에 제가 사용 중인 [Parse](https://parseplatform.org/) 오픈소스에서는 아래와 같이 사용자의 Session 을 관리하고 있습니다.
+
+{% image fancybox center clear group:travel dbstorage.png "Parse Dashboard Session Collection" %}
+
+MongoDB 를 사용 중이며 위 그림의 `Session` Collection 을 살펴보면, sessionToken 과 expiresAt(로그인 유지 만료시간), user(사용자 외래키) 속성이 있습니다. sessionToken 을 자세히 설명하면 사용자가 로그인 후에 주어지는 입장권 같은 것입니다. 입장권이 있으면 서비스를 이용할 때, 매번 로그인(ID,PW 입력)을 할 필요 없이 DB 에서는 sessionToken(입장권) 을 비교하고 expiresAt(만료일)이 지났는지 확인합니다. 사용자는 더 간편하게 서비스를 이용 할 수 있죠. 또한 동일한 사용자이면서 여러 디바이스 마다 recode 를 생성하여 1:N 관계로 Session을 관리 할 수 있게 됩니다.
 
 ## 마치며
 
@@ -246,4 +250,4 @@ mYCHWOju_gFEiGM_tvxBvi2FtsVdepju.json (sessionId 값이 파일명이 됨.)
 
 번외로 개발자분들이 Session과 Cookie에 대해 얼마나 알고 계신지 궁금하여 생활코딩을 통해서 설문조사를 진행 했습니다. 
 {% image fancybox center clear group:travel facebook.jpeg 80% %}
-글을 쓰면서 생각해보니 `세션을 DB 에 저장하는 이유를 알고 있다` 라는 항목을 잘 못 적었다는 생각이 드네요. 정확히는 `세션의 한계를 알고 로그인 기능이 필요한 이유를 알고 있다` 라고 했어야 했네요.
+글을 쓰면서 생각해보니 `Session을 DB 에 저장하는 이유를 알고 있다` 라는 항목을 잘 못 적었다는 생각이 드네요. 정확히는 `Session의 한계를 알고 로그인 기능이 필요한 이유를 알고 있다` 라고 했어야 했네요.
