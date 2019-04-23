@@ -246,9 +246,9 @@ sharing_options:
     twitter:
         icon: "fab fa-twitter"
         url: "https://twitter.com/intent/tweet?text={{post.permalink}}"
-    google_plus:
-        icon: "fab fa-google-plus"
-        url: "https://plus.google.com/share?url={{post.permalink}}"
+    # google_plus:
+    #     icon: "fab fa-google-plus"
+    #     url: "https://plus.google.com/share?url={{post.permalink}}"
     # Asian social networks
 #    weibo:
 #        title: "Weibo"

@@ -27,12 +27,14 @@
     <% if (!post.coverImage || post.coverMeta === 'out') { %>
         <%- partial('post/header')%>
     <% } %>
+
     <div class="post-content markdown">
         <div class="main-content-wrap">
             <%- postContent %>
             <%- partial('post/gallery') %>
         </div>
     </div>
+
     <div id="post-footer" class="post-footer main-content-wrap">
         <% if ((post.tags) && (post.tags.length > 0)) { %>
             <div class="post-footer-tags">

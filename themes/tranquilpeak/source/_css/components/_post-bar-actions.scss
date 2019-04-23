@@ -1,4 +1,4 @@
-.post-actions-wrap {
+.post-bar-actions-wrap {
     height:      60px;
     padding:     0;
     line-height: 60px;
@@ -18,7 +18,7 @@
     // Post's navigation options
     ul.post-action-nav {
         // Best width for responsive post's navigation panel on small screen and up
-        width:   100%;
+        width:   auto;
         // On very small screen `.post-actions-nav` will be above `.post-actions-share`
         z-index: map-get($z-indexes, c-post-bottom-bar) + 2;
 
@@ -28,8 +28,6 @@
             min-width: 42px;
 
             &:last-child {
-                float:     right;
-
                 .post-action-btn {
                     margin-left: 15px;
                 }
@@ -38,16 +36,17 @@
     }
     // Post's share options
     ul.post-action-share {
+        float:        right;
         // 100% minus width of `.post-action-nav`,
         // best width for responsive post's share panel on small screen and up
-        width:   100%;
+        width:   auto;
         // On very small screen `.post-actions-nav` will be above `.post-actions-share`
         z-index: map-get($z-indexes, c-post-bottom-bar) + 1;
 
         li.post-action {
             float: right;
 
-            &:nth-child(n) {
+            &:nth-child(n + 3) {
                 .post-action-btn {
                     margin-right: 15px;
                 }
@@ -58,28 +57,28 @@
 
 // Increase width of `.post-actions-share` on small screen
 @media #{$small-and-down} {
-    .post-actions-wrap {
+    .post-bar-actions-wrap {
         ul.post-action-nav {
             // Best width for responsive post's navigation panel on small screen
-            width: 100%;
+            width: 25%;
         }
         ul.post-action-share {
             // Best width for responsive post's share panel on small screen
-            width: 100%;
+            width: 75%;
         }
     }
 }
 
 // Increase width of `.post-actions-nav` on very small screen
 @media #{$xsmall-and-down} {
-    .post-actions-wrap {
+    .post-bar-actions-wrap {
         ul.post-action-nav {
             // Best width for responsive post's navigation panel on very small screen
-            width: 100%;
+            width: 35%;
         }
         ul.post-action-share {
             // Best width for responsive post's share panel on very small screen
-            width: 100%;
+            width: 65%;
         }
     }
 }

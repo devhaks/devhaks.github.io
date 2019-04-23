@@ -28,7 +28,7 @@
             </div>
             <% if (is_post() && (page.actions === undefined || page.actions)) { %>
                 <div id="bottom-bar" class="post-bottom-bar" data-behavior="<%= sidebarBehavior %>">
-                    <%- partial('_partial/post/actions', {post: page}) %>
+                    <%- partial('_partial/post/bar-actions', {post: page}) %>
                 </div>
                 <%- partial('_partial/post/share-options', {post: page, sidebarBehavior: sidebarBehavior}) %>
             <% } %>
