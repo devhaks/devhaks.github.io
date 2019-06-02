@@ -22,7 +22,7 @@ coverImage: cover.jpg
 <!-- excerpt -->
 
 들어가기 앞서 코드의 설명은 nodejs + express 로 하겠습니다. 
-전체 소스 코드는 [gitHub](https://github.com/devhaks/myNode) 의 session 브랜치를 참고하시면 됩니다.
+전체 소스 코드는 [gitHub](https://github.com/devhaks/myNode/tree/session) 를 참고하시면 됩니다.
 
 ## 목차
 
