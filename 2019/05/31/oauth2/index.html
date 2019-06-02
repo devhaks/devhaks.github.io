@@ -6,12 +6,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="generator" content="Devhaks 개발 저장소">
-    <title>카카오 로그인을 통한 Oauth2 이해하기 - Devhaks 개발 저장소</title>
+    <title>카카오 로그인 연동을 통한 OAuth2 이해하기 - Devhaks 개발 저장소</title>
     <meta name="author" content="이종학">
     
     
     
-    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n들어가기 앞서 코드의 설명은 nodejs + express 로 하겠습니다.전체 소스 코드는 gitHub 를 참고하시면 됩니다.\n목차\n배경\n\nOauth2 이란\n\nOauth2 역할\nOauth2 토큰\n\n\n서버 설정\n\n카카오 로그인 구현\n\n마치며\n\n\n배경질링스 서비스에 소셜 로그인을 기능을 구현하기 위해 검색을 열심히 하면서 준비를 했습니다. 구글링을 통해 여러 블로그들도 많이 참고하였습니다. 좋은글들은 많았지만, 대부분의 글이 라이브러리를 통한 기능 구현을 위주로 설명이 되어 있어서 잘 이해가 되지 않았습니다. 또한 사용자와 서비스 간의 상호작용이 어떻게 흘러가는지 이해를 못했기 때문인게 가장 큰 문제 였던것 같습니다. (ㅠㅠ)\n그래서 Oauth2.0 를 정확히 이해하기 위해 라이브러리 없이 직접 구현해보았습니다.\nOauth2 이란OAUTH 2.0은 서비스 사용자(Resource Owner)가 애플리케이션에게 모든 권한을 넘기지 않고 사용자 대신 서비스를 이용할 수 있게 해주는 HTTP 기반의 보안 프로토콜입니다.\nOauth 를 제공하는 서비스(Resource Server)는 세계적으로 대표적인 페이스북, 구글, 링크드인이 있습니다. 국내에는 대표젹으로 네이버와 카카오가 있죠.\nOauth 의 보안 방식을 통해 사용자 입장에서는 더욱더 간편해지고 개발자 입장에서는 민감한 사용자 정보를 다루지 않고 Oauth 를 제공하는 서비스(Resource Server)로 부터 사용자 정보를 활용 할 수 있기 때문에 장점이 상당히 많습니다.\nOauth2 역할위 이미지를 보시면, 총 4가지 역할로 구분 할 수 있습니다.\n\nResource Owner \n\n정보의 소유권을 가진 사용자입니다. \n\n\nResource Server \n\n사용자(Resource Owner)의 정보를 보관하고 있는 서버입니다. \n구글, 페이스북, 네이버, 카카오 등이 있습니다. \nprovider 라고 부르기도 합니다.\n\n\nAuthorization Server \n\nResource Owner 을 인증합니다.\nClient 에게 Access token 을 발행합니다.\n\n\nClient \n\n구글, 페이스북 등 Oauth 를 사용하는 서비스를 뜻합니다. \n이는 사용자 동의하에 Resource Server 에 사용자의 특정 정보를 요청 할 수 있습니다.\n\n\n\nOauth2 토큰Authorization Server 로 부터 발급된 랜덤한 문자열입니다. 토큰은 2가지 종류가 있습니다.\n\nAccess Token\n\nClient 가 Resource Server 에게 사용자 정보를 요청하기 위한 입장권 같은 것입니다.\n입장권에는 유효기간이 있습니다. 각 provider 마다 다릅니다.\n유효 기간이 지나면 더 이상 이 토큰을 사용 할 수 없습니다.\n\n\nRefresh Token\n\n위 Access Token 이 유효기간이 만료 되면, 새로운 Access Token 을 발급 받기 위해 필요한 토큰입니다.\n이 토큰에도 유효기간이 있습니다. 각 provider 마다 다릅니다. Access Token 보다는 유효기간이 훨씬 깁니다.\n\n\n\n서버 설정구현하기 앞서, 서버 설정에 대한 설명입니다.\n\nClient base Url: http://localhost:8888\n\n계정은 DB 대신 서버에서 생성한 session 파일로 대신하였습니다.\n\n카카오 개발자 콘솔 로 접속하여 애플리케이션을 생성하고 아래와 같이 설정을 합니다.\n\n\n\n카카오 개발자 콘솔 설정 - 사용자 관리\n\n\n카카오 개발자 콘솔 설정 - 사용자 관리 - 로그인 동의 항목 이메일 설정\n\n\n카카오 개발자 콘솔 설정 - 일반\n\n\n카카오 개발자 콘솔 설정 - 고급\n\nclientID, clientSecret, redirectUri 설정123456// routes/auth/kakao.jsconst kakao = &#123;  clientID: \"803fa52145da1c0cc9a748018a95d136\",  clientSecret: \"BtSD12taxk3DqusTvOjGBQv2MbZoViI3\",  redirectUri: \"http://localhost:8888/auth/kakao/callback\"&#125;;\n\n\n카카오 로그인 구현Oauth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/\n위 이미지의 화살표에 번호가 1~5번까지 있습니다. 실제 구현에서 1번을 제외하고 2~5번 과정을 구현합니다. 전체 소스 코드는 gitHub 참고 바랍니다.\n\n이 과정은 provider 내부에서 이뤄지기 때문에 구현하는 부분에서 제외합니다.\n\nClient 서비스에 접속\n\n사용자는 http://localhost:8888/auth/kakao 를 클릭하여 3단계를 진행합니다.\n\n1234// views/partial/header.ejs&lt;div&gt;  &lt;a href=\"/auth/kakao\"&gt;카카오 간편 로그인&lt;/a&gt;&lt;/div&gt;\n\n인증 및 접근 권한 받기\n\n미리 카카오에 로그인 되어 있는 경우, 서비스 동의 페이지로 리다이렉트 됩니다.\n\n사용자 서비스 동의 화면\n\n이때 리다이렉트되는 주소를 확인하시면 /auth/kakao route 의해 생성된 주소임을 확인 할 수 있습니다. 12345678910111213141516// routes/auth/kakao.js/*** @summary 카카오 인증 진행하기** @description* - '간편 로그인' 링크로 접근 했을 때, '사용자 서비스 동의' 페이지로 리다이렉트 합니다.* - redirectUri 는 인증 성공시, 카카오 개발자 콘솔에 기입한 이동할 주소입니다.*/// http://localhost:8888/auth/kakaorouter.get(\"/\", (req, res) =&gt; &#123;  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=$&#123;    kakao.clientID  &#125;&amp;redirect_uri=$&#123;kakao.redirectUri&#125;&amp;response_type=code`;  return res.redirect(kakaoAuthUrl);&#125;);\n\n\n\n\n\n\nAuthorization Server 부터 Access token 발급받기 &amp; 사용자 정보 요청하기\n\n3번에서 인증 완료 후, 받은 code 를 https://kauth.kakao.com/oauth/token 에 요청하여 Access token 을 받습니다.\n\n5번 과정을 이 과정에서 설명하도록 하겠습니다.\n\n사용자 기본 정보를 얻기 위해 발급 받은 Access token 을 https://kapi.kakao.com/v2/user/me 에 요청 합니다.\nlinkUser() 함수를 통해 사용자 session 정보에 Access token과 사용자 기본 정보를 저장합니다. (저장 결과는 하단 참고)\n\n\n\n123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101// routes/auth/kakao.js/** * @summary 사용자 계정을 provider 로 연동. 인증 정보와 함께 저장 * * @param &#123;*&#125; session 사용자 세션 * @param &#123;*&#125; provider 공급사 * @param &#123;*&#125; authData 인증 정보 */function linkUser(session, provider, authData) &#123;  let result = false;  if (session.authData) &#123;    if (session.authData[provider]) &#123;      // 이미 계정에 provider 가 연결되어 있는 경우      return result;    &#125;    session.authData[provider] = authData;  &#125; else &#123;    session.authData = &#123;      [provider]: authData    &#125;;  &#125;  result = true;  return result;&#125;/** *  * @summary '사용자 서비스 동의' 완료 후, 이동되는 주소. * * @description * - 사용자로부터 동의를 구한 후, 서비스 내에서 처리할 로직을 구현합니다. */// http://localhost:8888/auth/kakao/callbackrouter.get(\"/callback\", async (req, res) =&gt; &#123;  const &#123; session, query &#125; = req;  const &#123; code &#125; = query;  console.info(\"==== session ====\");  console.log(session);  let tokenResponse;  try &#123;    tokenResponse = await axios(&#123;      method: \"POST\",      url: 'https://kauth.kakao.com/oauth/token',      headers: &#123;        \"content-type\": \"application/x-www-form-urlencoded\"      &#125;,      data: qs.stringify(&#123;        grant_type: \"authorization_code\",        client_id: kakao.clientID,        client_secret: kakao.clientSecret,        redirect_uri: kakao.redirectUri,        code      &#125;)    &#125;);  &#125; catch (error) &#123;    return res.json(error.data);  &#125;  console.info(\"==== tokenResponse.data ====\");  console.log(tokenResponse.data);  const &#123; access_token &#125; = tokenResponse.data;  let userResponse;  try &#123;    userResponse = await axios(&#123;      method: \"GET\",      url: \"https://kapi.kakao.com/v2/user/me\",      headers: &#123;        Authorization: `Bearer $&#123;access_token&#125;`      &#125;    &#125;);  &#125; catch (error) &#123;    return res.json(error.data);  &#125;  console.info(\"==== userResponse.data ====\");  console.log(userResponse.data);  const authData = &#123;    ...tokenResponse.data,    ...userResponse.data  &#125;;  const result = linkUser(session, \"kakao\", authData);  if (result) &#123;    console.info(\"계정에 연결되었습니다.\");  &#125; else &#123;    console.warn(\"이미 연결된 계정입니다.\");  &#125;  res.redirect(\"/\");&#125;);\n세션 파일에 저장된 사용자 정보1234567891011121314151617181920212223242526272829303132&#123;   \"cookie\":&#123;      \"originalMaxAge\":null,    \"expires\":null,    \"httpOnly\":true,    \"path\":\"/\" &#125;, \"__lastAccess\":1559314094266, \"authData\":&#123;      \"kakao\":&#123;         \"access_token\":\"leeDsQ5cKYUqX0VmF94T4GljGEMWrDTdHMcUyworDR4AAAFrDlzUBg\",       \"token_type\":\"bearer\",       \"refresh_token\":\"0N5qjWKMCBsF4nqxoA7_lRf1d4JVQQGchRMC4worDR4AAAFrDlzUBA\",       \"expires_in\":21599,       \"scope\":\"account_email profile\",       \"refresh_token_expires_in\":2591999,       \"id\":1056808462,       \"properties\":&#123;            \"nickname\":\"이종학\",          \"profile_image\":\"http://k.kakaocdn.net/dn/bu6KcI/btqvJSMkboY/k9XRhVYKqKD7A75QS3gnI0/profile_640x640s.jpg\",          \"thumbnail_image\":\"http://k.kakaocdn.net/dn/bu6KcI/btqvJSMkboY/k9XRhVYKqKD7A75QS3gnI0/profile_110x110c.jpg\"       &#125;,       \"kakao_account\":&#123;            \"has_email\":true,          \"email_needs_agreement\":false,          \"is_email_valid\":true,          \"is_email_verified\":true,          \"email\":\"enenfru@nate.com\"       &#125;    &#125;  &#125;&#125;\n\n\n마치며Oauth 로그인을 라이브러리 없이 직접 구현해봤습니다. 실제 3~4일을 삽질했던것 같네요. 이렇게 직접 구현해 본 후, 다른 provider 도 이와 같이 쉽게 구현 할 수 있을 것 같습니다.  ","dateCreated":"2019-05-31T21:23:28+09:00","dateModified":"2019-06-01T01:34:29+09:00","datePublished":"2019-05-31T21:23:28+09:00","description":"이번 포스팅은 사용자에게는 편하지만 개발자에게는 이해하기 어려운 소셜 로그인에 대해 설명합니다.","headline":"카카오 로그인을 통한 Oauth2 이해하기","image":["thumbnail.png"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/05/31/oauth2/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/05/31/oauth2/","keywords":"Oauth2, kakao","thumbnailUrl":"thumbnail.png"}</script>
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n들어가기 앞서 코드의 설명은 nodejs + express 로 하겠습니다.전체 소스 코드는 gitHub 를 참고하시면 됩니다.\n목차\n배경\n\nOAuth2 이란\n\nOAuth2 역할\nOAuth2 토큰\n\n\n서버 설정\n\n카카오 개발자 어플리케이션 등록하기\n\n카카오 로그인 구현\n\n마치며\n\n참고\n\n\n배경소셜 로그인이란 단어가 나온지 오래 되었는데, 저희 회사 서비스에 소셜 로그인을 기능을 구현하기 위해 이제서야 파헤쳐 보려 합니다.\n소셜 로그인 단어를 처음 들었을 때, ‘어떻게 구글이나 페이스북으로 자사 서비스에 계정도 없는데 로그인을 할 수 있지?’ 의문이 들었습니다.\n이미 소셜 로그인에 대한 블로그는 많지만 개념보다는 구현에 가까운 내용이 많아서 의문점이 풀리질 않았습니다. \n그래서 OAuth2 를 정확히 이해하기 위해 준비했습니다. 또한 Oauth2 를 이해하고 소셜 로그인을 라이브러리 없이 직접 구현해보려고 합니다.\nOAuth2 이란OAUTH 2.0은 정보 소유권을 가진 사용자(Resource Owner)가 애플리케이션(Client)에게 모든 권한을 넘기지 않고 사용자 대신 서비스를 이용할 수 있게 해주는 HTTP 기반의 보안 프로토콜입니다.\nOauth 를 제공하는 서비스(Resource Server)는 세계적으로 대표적인 페이스북, 구글, 링크드인이 있습니다. 국내에는 대표젹으로 네이버와 카카오가 있죠.\nOauth 의 보안 방식을 통해 사용자 입장에서는 더욱더 간편해지고 개발자 입장에서는 민감한 사용자 정보를 다루지 않고 Oauth 를 제공하는 서비스(Resource Server)로 부터 사용자 정보를 활용 할 수 있기 때문에 장점이 상당히 많습니다.\nOAuth2 역할OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/\n위 이미지를 보시면, 총 4가지 역할로 구분 할 수 있습니다.\n\nResource Owner \n\n정보의 소유권을 가진 사용자입니다. \n\n\nResource Server \n\n사용자(Resource Owner)의 정보를 보관하고 있는 서버입니다. \n구글, 페이스북, 네이버, 카카오 등이 있습니다. \nprovider 라고 부르기도 합니다.\n\n\nAuthorization Server \n\nResource Owner 을 인증합니다.\nClient 에게 Access token 을 발행합니다.\n\n\nClient \n\n구글, 페이스북 등 Oauth 를 사용하는 서비스를 뜻합니다. \n이는 사용자 동의하에 Resource Server 에 사용자의 특정 정보를 요청 할 수 있습니다.\n\n\n\nOAuth2 토큰Authorization Server 로 부터 발급된 랜덤한 문자열입니다. 위 이미지에서 열쇠 모양으로 표시 됩니다. 토큰은 2가지 종류가 있습니다.\n\nAccess Token\n\nClient 가 Resource Server 에게 사용자 정보를 요청하기 위한 입장권 같은 것입니다.\n입장권에는 유효기간이 있습니다. 각 provider 마다 다릅니다.\n유효 기간이 지나면 더 이상 이 토큰을 사용 할 수 없습니다.\n\n\nRefresh Token\n\n위 Access Token 이 유효기간이 만료 되면, 새로운 Access Token 을 발급 받기 위해 필요한 토큰입니다.\n이 토큰에도 유효기간이 있습니다. 각 provider 마다 다릅니다. Access Token 보다는 유효기간이 훨씬 깁니다.\n\n\n\n서버 설정구현하기 앞서, 서버 설정에 대한 설명입니다.\n\nClient base Url: http://localhost:8888\n\n사용자 계정은 DB 대신 서버에서 생성한 사용자별 session 파일(.json)로 대신하였습니다.\n\n\n카카오 개발자 어플리케이션 등록하기\n카카오 개발자 콘솔 로 접속하여 애플리케이션을 생성하고 아래와 같이 clientID, clientSecret, redirect path 를 설정합니다.\n\n\n카카오 개발자 콘솔 설정 - 사용자 관리\n\n\n카카오 개발자 콘솔 설정 - 사용자 관리 - 로그인 동의 항목 이메일 설정\n\n\n카카오 개발자 콘솔 설정 - 일반\n\n\n카카오 개발자 콘솔 설정 - 고급\n\nclientID, clientSecret, redirectUri 설정123456// routes/auth/kakao.jsconst kakao = &#123;  clientID: \"803fa52145da1c0cc9a748018a95d136\",  clientSecret: \"BtSD12taxk3DqusTvOjGBQv2MbZoViI3\",  redirectUri: \"http://localhost:8888/auth/kakao/callback\"&#125;;\n\n\n카카오 로그인 구현OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/\n위 이미지의 화살표에 번호가 1~5번까지 있습니다. 실제 구현에서 1번을 제외하고 2~5번 과정을 구현합니다. 전체 소스 코드는 gitHub 참고 바랍니다.\n\n이 과정은 provider 내부에서 이뤄지기 때문에 구현하는 부분에서 제외합니다.\n\nClient 서비스에 접속\n\n사용자는 http://localhost:8888/auth/kakao 를 클릭하여 3단계를 진행합니다.\n\n1234// views/partial/header.ejs&lt;div&gt;  &lt;a href=\"/auth/kakao\"&gt;카카오 간편 로그인&lt;/a&gt;&lt;/div&gt;\n\n인증 및 접근 권한 받기\n\n미리 카카오에 로그인 되어 있는 경우, 서비스 동의 페이지로 리다이렉트 됩니다.\n\n사용자 서비스 동의 화면\n\n이때 리다이렉트되는 주소를 확인하시면 /auth/kakao route 의해 생성된 주소임을 확인 할 수 있습니다. 12345678910111213141516// routes/auth/kakao.js/*** @summary 카카오 인증 진행하기** @description* - '간편 로그인' 링크로 접근 했을 때, '사용자 서비스 동의' 페이지로 리다이렉트 합니다.* - redirectUri 는 인증 성공시, 카카오 개발자 콘솔에 기입한 이동할 주소입니다.*/// http://localhost:8888/auth/kakaorouter.get(\"/\", (req, res) =&gt; &#123;  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=$&#123;    kakao.clientID  &#125;&amp;redirect_uri=$&#123;kakao.redirectUri&#125;&amp;response_type=code`;  return res.redirect(kakaoAuthUrl);&#125;);\n\n\n\n\n\n\nAuthorization Server 부터 Access token 발급받기 &amp; 사용자 정보 요청하기\n\n3번에서 인증 완료 후, 받은 code 를 https://kauth.kakao.com/oauth/token 에 요청하여 Access token 을 받습니다.\n\n5번 과정을 이 과정에서 설명하도록 하겠습니다.\n\n사용자 기본 정보를 얻기 위해 발급 받은 Access token 을 https://kapi.kakao.com/v2/user/me 에 요청 합니다.\nlinkUser() 함수를 통해 사용자 session 정보에 Access token과 사용자 기본 정보를 저장합니다. (저장 결과는 하단 참고)\n\n\n\n123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101// routes/auth/kakao.js/** * @summary 사용자 계정을 provider 로 연동. 인증 정보와 함께 저장 * * @param &#123;*&#125; session 사용자 세션 * @param &#123;*&#125; provider 공급사 * @param &#123;*&#125; authData 인증 정보 */function linkUser(session, provider, authData) &#123;  let result = false;  if (session.authData) &#123;    if (session.authData[provider]) &#123;      // 이미 계정에 provider 가 연결되어 있는 경우      return result;    &#125;    session.authData[provider] = authData;  &#125; else &#123;    session.authData = &#123;      [provider]: authData    &#125;;  &#125;  result = true;  return result;&#125;/** *  * @summary '사용자 서비스 동의' 완료 후, 이동되는 주소. * * @description * - 사용자로부터 동의를 구한 후, 서비스 내에서 처리할 로직을 구현합니다. */// http://localhost:8888/auth/kakao/callbackrouter.get(\"/callback\", async (req, res) =&gt; &#123;  const &#123; session, query &#125; = req;  const &#123; code &#125; = query;  console.info(\"==== session ====\");  console.log(session);  let tokenResponse;  try &#123;    tokenResponse = await axios(&#123;      method: \"POST\",      url: 'https://kauth.kakao.com/oauth/token',      headers: &#123;        \"content-type\": \"application/x-www-form-urlencoded\"      &#125;,      data: qs.stringify(&#123;        grant_type: \"authorization_code\",        client_id: kakao.clientID,        client_secret: kakao.clientSecret,        redirect_uri: kakao.redirectUri,        code      &#125;)    &#125;);  &#125; catch (error) &#123;    return res.json(error.data);  &#125;  console.info(\"==== tokenResponse.data ====\");  console.log(tokenResponse.data);  const &#123; access_token &#125; = tokenResponse.data;  let userResponse;  try &#123;    userResponse = await axios(&#123;      method: \"GET\",      url: \"https://kapi.kakao.com/v2/user/me\",      headers: &#123;        Authorization: `Bearer $&#123;access_token&#125;`      &#125;    &#125;);  &#125; catch (error) &#123;    return res.json(error.data);  &#125;  console.info(\"==== userResponse.data ====\");  console.log(userResponse.data);  const authData = &#123;    ...tokenResponse.data,    ...userResponse.data  &#125;;  const result = linkUser(session, \"kakao\", authData);  if (result) &#123;    console.info(\"계정에 연결되었습니다.\");  &#125; else &#123;    console.warn(\"이미 연결된 계정입니다.\");  &#125;  res.redirect(\"/\");&#125;);\n세션 파일에 저장된 사용자 정보1234567891011121314151617181920212223242526272829303132&#123;   \"cookie\":&#123;      \"originalMaxAge\":null,    \"expires\":null,    \"httpOnly\":true,    \"path\":\"/\" &#125;, \"__lastAccess\":1559314094266, \"authData\":&#123;      \"kakao\":&#123;         \"access_token\":\"leeDsQ5cKYUqX0VmF94T4GljGEMWrDTdHMcUyworDR4AAAFrDlzUBg\",       \"token_type\":\"bearer\",       \"refresh_token\":\"0N5qjWKMCBsF4nqxoA7_lRf1d4JVQQGchRMC4worDR4AAAFrDlzUBA\",       \"expires_in\":21599,       \"scope\":\"account_email profile\",       \"refresh_token_expires_in\":2591999,       \"id\":1056808462,       \"properties\":&#123;            \"nickname\":\"이종학\",          \"profile_image\":\"http://k.kakaocdn.net/dn/bu6KcI/btqvJSMkboY/k9XRhVYKqKD7A75QS3gnI0/profile_640x640s.jpg\",          \"thumbnail_image\":\"http://k.kakaocdn.net/dn/bu6KcI/btqvJSMkboY/k9XRhVYKqKD7A75QS3gnI0/profile_110x110c.jpg\"       &#125;,       \"kakao_account\":&#123;            \"has_email\":true,          \"email_needs_agreement\":false,          \"is_email_valid\":true,          \"is_email_verified\":true,          \"email\":\"enenfru@nate.com\"       &#125;    &#125;  &#125;&#125;\n\n\n마치며Oauth 로그인을 라이브러리 없이 직접 구현해봤습니다. 실제 3~4일을 삽질했던것 같네요. 이렇게 직접 구현해 본 후, 다른 provider 도 이와 같이 쉽게 구현 할 수 있을 것 같습니다.  \n참고\n생활코딩 - https://opentutorials.org/course/3405\n\n개념 및 실습 위주의 동영상 강의입니다.\n\n\n네이버 D2 - https://d2.naver.com/helloworld/24942\n\nOAuth 및 이와 관련된 내용이 잘 설명되어 있다.\n\n\n","dateCreated":"2019-05-31T21:23:28+09:00","dateModified":"2019-06-02T12:19:42+09:00","datePublished":"2019-05-31T21:23:28+09:00","description":"이번 포스팅은 사용자에게는 편하지만 개발자에게는 다소 이해하기 힘든 OAuth2 대해 설명합니다.","headline":"카카오 로그인 연동을 통한 OAuth2 이해하기","image":["thumbnail.png","cover.jpg"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/05/31/oauth2/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/05/31/oauth2/","keywords":"OAuth2, kakao","thumbnailUrl":"thumbnail.png"}</script>
     
     
     
@@ -24,6 +24,9 @@
     
     
     
+        <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/cover.jpg"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/05/31/oauth2/cover.jpg" />
+    
     
     
         <meta property="og:image" content="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=640"/>
@@ -31,25 +34,26 @@
     
     
 
-    <meta name="description" content="Oauth2 를 이해하기 위해 카카오 로그인을 통해 설명합니다.">
-<meta name="keywords" content="Oauth2,kakao">
+    <meta name="description" content="OAuth2 를 이해하기 위해 카카오 로그인 연동을 통해 설명합니다.">
+<meta name="keywords" content="OAuth2,kakao">
 <meta property="og:type" content="blog">
-<meta property="og:title" content="카카오 로그인을 통한 Oauth2 이해하기">
+<meta property="og:title" content="카카오 로그인 연동을 통한 OAuth2 이해하기">
 <meta property="og:url" content="https://devhaks.github.io/2019/05/31/oauth2/index.html">
 <meta property="og:site_name" content="Devhaks 개발 저장소">
-<meta property="og:description" content="Oauth2 를 이해하기 위해 카카오 로그인을 통해 설명합니다.">
+<meta property="og:description" content="OAuth2 를 이해하기 위해 카카오 로그인 연동을 통해 설명합니다.">
 <meta property="og:locale" content="en">
+<meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/Oauth-architecture.png">
 <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/kakao-console-3.png">
 <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/kakao-console-4.png">
 <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/kakao-console-1.png">
 <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/kakao-console-2.png">
 <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/Oauth-architecture.png">
 <meta property="og:image" content="https://devhaks.github.io/2019/05/31/oauth2/kakao-agreement.png">
-<meta property="og:updated_time" content="2019-05-31T16:34:29.608Z">
+<meta property="og:updated_time" content="2019-06-02T03:19:42.352Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="카카오 로그인을 통한 Oauth2 이해하기">
-<meta name="twitter:description" content="Oauth2 를 이해하기 위해 카카오 로그인을 통해 설명합니다.">
-<meta name="twitter:image" content="https://devhaks.github.io/2019/05/31/oauth2/kakao-console-3.png">
+<meta name="twitter:title" content="카카오 로그인 연동을 통한 OAuth2 이해하기">
+<meta name="twitter:description" content="OAuth2 를 이해하기 위해 카카오 로그인 연동을 통해 설명합니다.">
+<meta name="twitter:image" content="https://devhaks.github.io/2019/05/31/oauth2/Oauth-architecture.png">
 
 
     <!--STYLES-->
@@ -225,18 +229,14 @@
 </nav>
 
             
-            <div id="main" data-behavior="5"
-                 class="
-                        hasCoverMetaIn
-                        ">
-                
-<article class="post">
-    
-    
-        <div class="post-header main-content-wrap text-left">
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full" style="background-image:url('/2019/05/31/oauth2/cover.jpg');" data-behavior="5">
+            
+                <div class="post-header main-content-wrap text-left">
     
         <h1 class="post-title">
-            카카오 로그인을 통한 Oauth2 이해하기
+            카카오 로그인 연동을 통한 OAuth2 이해하기
         </h1>
     
     
@@ -258,6 +258,16 @@
     
 </div>
 
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
     
 
     <div class="post-content markdown">
@@ -267,25 +277,32 @@
 <h2 id="목차"><a href="#목차" class="headerlink" title="목차"></a>목차</h2><ul>
 <li><p><a href="#배경">배경</a></p>
 </li>
-<li><p><a href="#Oauth2-이란">Oauth2 이란</a></p>
+<li><p><a href="#OAuth2-이란">OAuth2 이란</a></p>
 <ul>
-<li><a href="#Oauth2-역할">Oauth2 역할</a></li>
-<li><a href="#Oauth2-토큰">Oauth2 토큰</a></li>
+<li><a href="#OAuth2-역할">OAuth2 역할</a></li>
+<li><a href="#OAuth2-토큰">OAuth2 토큰</a></li>
 </ul>
 </li>
 <li><p><a href="#서버-설정">서버 설정</a></p>
+</li>
+<li><p><a href="#카카오-개발자-어플리케이션-등록하기">카카오 개발자 어플리케이션 등록하기</a></p>
 </li>
 <li><p><a href="#카카오-로그인-구현">카카오 로그인 구현</a></p>
 </li>
 <li><p><a href="#마치며">마치며</a></p>
 </li>
+<li><p><a href="#참고">참고</a></p>
+</li>
 </ul>
-<h2 id="배경"><a href="#배경" class="headerlink" title="배경"></a>배경</h2><p><a href="https://zillinks.com" target="_blank" rel="noopener">질링스</a> 서비스에 소셜 로그인을 기능을 구현하기 위해 검색을 열심히 하면서 준비를 했습니다. 구글링을 통해 여러 블로그들도 많이 참고하였습니다. 좋은글들은 많았지만, 대부분의 글이 라이브러리를 통한 기능 구현을 위주로 설명이 되어 있어서 잘 이해가 되지 않았습니다. 또한 사용자와 서비스 간의 상호작용이 어떻게 흘러가는지 이해를 못했기 때문인게 가장 큰 문제 였던것 같습니다. (ㅠㅠ)</p>
-<p>그래서 Oauth2.0 를 정확히 이해하기 위해 라이브러리 없이 직접 구현해보았습니다.</p>
-<h2 id="Oauth2-이란"><a href="#Oauth2-이란" class="headerlink" title="Oauth2 이란"></a>Oauth2 이란</h2><p>OAUTH 2.0은 서비스 사용자(Resource Owner)가 애플리케이션에게 모든 권한을 넘기지 않고 사용자 대신 서비스를 이용할 수 있게 해주는 HTTP 기반의 보안 프로토콜입니다.</p>
+<h2 id="배경"><a href="#배경" class="headerlink" title="배경"></a>배경</h2><p>소셜 로그인이란 단어가 나온지 오래 되었는데, 저희 회사 서비스에 소셜 로그인을 기능을 구현하기 위해 이제서야 파헤쳐 보려 합니다.</p>
+<p>소셜 로그인 단어를 처음 들었을 때, <u>‘어떻게 구글이나 페이스북으로 자사 서비스에 계정도 없는데 로그인을 할 수 있지?’</u> 의문이 들었습니다.</p>
+<p>이미 소셜 로그인에 대한 블로그는 많지만 개념보다는 구현에 가까운 내용이 많아서 의문점이 풀리질 않았습니다. </p>
+<p>그래서 OAuth2 를 정확히 이해하기 위해 준비했습니다. 또한 Oauth2 를 이해하고 소셜 로그인을 라이브러리 없이 직접 구현해보려고 합니다.</p>
+<h2 id="OAuth2-이란"><a href="#OAuth2-이란" class="headerlink" title="OAuth2 이란"></a>OAuth2 이란</h2><p>OAUTH 2.0은 정보 소유권을 가진 사용자(Resource Owner)가 애플리케이션(Client)에게 <u>모든 권한을 넘기지 않고 사용자 대신 서비스를 이용할 수 있게 해주는</u> HTTP 기반의 보안 프로토콜입니다.</p>
 <p>Oauth 를 제공하는 서비스(Resource Server)는 세계적으로 대표적인 페이스북, 구글, 링크드인이 있습니다. 국내에는 대표젹으로 네이버와 카카오가 있죠.</p>
 <p>Oauth 의 보안 방식을 통해 사용자 입장에서는 더욱더 간편해지고 개발자 입장에서는 민감한 사용자 정보를 다루지 않고 Oauth 를 제공하는 서비스(Resource Server)로 부터 사용자 정보를 활용 할 수 있기 때문에 장점이 상당히 많습니다.</p>
-<h4 id="Oauth2-역할"><a href="#Oauth2-역할" class="headerlink" title="Oauth2 역할"></a>Oauth2 역할</h4><p>위 이미지를 보시면, 총 4가지 역할로 구분 할 수 있습니다.<br><br></p>
+<h4 id="OAuth2-역할"><a href="#OAuth2-역할" class="headerlink" title="OAuth2 역할"></a>OAuth2 역할</h4><div class="figure center" style="width:;"><a class="fancybox" href="Oauth-architecture.png" title="OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/" data-caption="OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/" data-fancybox="travel"><img class="fig-img" src="Oauth-architecture.png" alt="OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/"></a><span class="caption">OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/</span></div><div style="clear:both;"></div>
+<p>위 이미지를 보시면, 총 4가지 역할로 구분 할 수 있습니다.<br><br></p>
 <ol>
 <li><p>Resource Owner </p>
 <ul>
@@ -312,7 +329,7 @@
 </ul>
 </li>
 </ol>
-<h4 id="Oauth2-토큰"><a href="#Oauth2-토큰" class="headerlink" title="Oauth2 토큰"></a>Oauth2 토큰</h4><p>Authorization Server 로 부터 발급된 랜덤한 문자열입니다. 토큰은 2가지 종류가 있습니다.<br><br></p>
+<h4 id="OAuth2-토큰"><a href="#OAuth2-토큰" class="headerlink" title="OAuth2 토큰"></a>OAuth2 토큰</h4><p>Authorization Server 로 부터 발급된 랜덤한 문자열입니다. 위 이미지에서 열쇠 모양으로 표시 됩니다. 토큰은 2가지 종류가 있습니다.<br><br></p>
 <ol>
 <li><p>Access Token</p>
 <ul>
@@ -332,10 +349,11 @@
 <ul>
 <li><p>Client base Url: <a href="http://localhost:8888" target="_blank" rel="noopener">http://localhost:8888</a></p>
 </li>
-<li><p>계정은 DB 대신 서버에서 생성한 session 파일로 대신하였습니다.</p>
+<li><p>사용자 계정은 DB 대신 서버에서 생성한 사용자별 session 파일(.json)로 대신하였습니다.</p>
 </li>
-<li><p><a href="https://developers.kakao.com/" target="_blank" rel="noopener">카카오 개발자 콘솔</a> 로 접속하여 애플리케이션을 생성하고 아래와 같이 설정을 합니다.</p>
-</li>
+</ul>
+<h2 id="카카오-개발자-어플리케이션-등록하기"><a href="#카카오-개발자-어플리케이션-등록하기" class="headerlink" title="카카오 개발자 어플리케이션 등록하기"></a>카카오 개발자 어플리케이션 등록하기</h2><ul>
+<li><a href="https://developers.kakao.com/" target="_blank" rel="noopener">카카오 개발자 콘솔</a> 로 접속하여 애플리케이션을 생성하고 아래와 같이 <code>clientID, clientSecret, redirect path</code> 를 설정합니다.</li>
 </ul>
 <ol>
 <li><div class="figure center" style="width:100%;"><a class="fancybox" href="kakao-console-3.png" title="카카오 개발자 콘솔 설정 - 사용자 관리" data-caption="카카오 개발자 콘솔 설정 - 사용자 관리" data-fancybox="travel"><img class="fig-img" src="kakao-console-3.png" style="width:100%;" alt="카카오 개발자 콘솔 설정 - 사용자 관리"></a><span class="caption">카카오 개발자 콘솔 설정 - 사용자 관리</span></div><div style="clear:both;"></div>
@@ -352,7 +370,7 @@
 <h5 id="clientID-clientSecret-redirectUri-설정"><a href="#clientID-clientSecret-redirectUri-설정" class="headerlink" title="clientID, clientSecret, redirectUri 설정"></a>clientID, clientSecret, redirectUri 설정</h5><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// routes/auth/kakao.js</span></span><br><span class="line"><span class="keyword">const</span> kakao = &#123;</span><br><span class="line">  clientID: <span class="string">"803fa52145da1c0cc9a748018a95d136"</span>,</span><br><span class="line">  clientSecret: <span class="string">"BtSD12taxk3DqusTvOjGBQv2MbZoViI3"</span>,</span><br><span class="line">  redirectUri: <span class="string">"http://localhost:8888/auth/kakao/callback"</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
-<h2 id="카카오-로그인-구현"><a href="#카카오-로그인-구현" class="headerlink" title="카카오 로그인 구현"></a>카카오 로그인 구현</h2><div class="figure center" style="width:;"><a class="fancybox" href="Oauth-architecture.png" title="Oauth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/" data-caption="Oauth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/" data-fancybox="travel"><img class="fig-img" src="Oauth-architecture.png" alt="Oauth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/"></a><span class="caption">Oauth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/</span></div><div style="clear:both;"></div>
+<h2 id="카카오-로그인-구현"><a href="#카카오-로그인-구현" class="headerlink" title="카카오 로그인 구현"></a>카카오 로그인 구현</h2><div class="figure center" style="width:;"><a class="fancybox" href="Oauth-architecture.png" title="OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/" data-caption="OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/" data-fancybox="travel"><img class="fig-img" src="Oauth-architecture.png" alt="OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/"></a><span class="caption">OAuth2 설계도 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/</span></div><div style="clear:both;"></div>
 <p>위 이미지의 화살표에 번호가 1~5번까지 있습니다. 실제 구현에서 1번을 제외하고 2~5번 과정을 구현합니다. 전체 소스 코드는 <a href="https://github.com/devhaks/myNode/tree/social_login" target="_blank" rel="noopener">gitHub</a> 참고 바랍니다.<br><br></p>
 <ol>
 <li><p>이 과정은 provider 내부에서 이뤄지기 때문에 구현하는 부분에서 제외합니다.</p>
@@ -391,7 +409,19 @@
 <h5 id="세션-파일에-저장된-사용자-정보"><a href="#세션-파일에-저장된-사용자-정보" class="headerlink" title="세션 파일에 저장된 사용자 정보"></a>세션 파일에 저장된 사용자 정보</h5><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">&#123;  </span><br><span class="line"> <span class="attr">"cookie"</span>:&#123;  </span><br><span class="line">    <span class="attr">"originalMaxAge"</span>:<span class="literal">null</span>,</span><br><span class="line">    <span class="attr">"expires"</span>:<span class="literal">null</span>,</span><br><span class="line">    <span class="attr">"httpOnly"</span>:<span class="literal">true</span>,</span><br><span class="line">    <span class="attr">"path"</span>:<span class="string">"/"</span></span><br><span class="line"> &#125;,</span><br><span class="line"> <span class="attr">"__lastAccess"</span>:<span class="number">1559314094266</span>,</span><br><span class="line"> <span class="attr">"authData"</span>:&#123;  </span><br><span class="line">    <span class="attr">"kakao"</span>:&#123;  </span><br><span class="line">       <span class="attr">"access_token"</span>:<span class="string">"leeDsQ5cKYUqX0VmF94T4GljGEMWrDTdHMcUyworDR4AAAFrDlzUBg"</span>,</span><br><span class="line">       <span class="attr">"token_type"</span>:<span class="string">"bearer"</span>,</span><br><span class="line">       <span class="attr">"refresh_token"</span>:<span class="string">"0N5qjWKMCBsF4nqxoA7_lRf1d4JVQQGchRMC4worDR4AAAFrDlzUBA"</span>,</span><br><span class="line">       <span class="attr">"expires_in"</span>:<span class="number">21599</span>,</span><br><span class="line">       <span class="attr">"scope"</span>:<span class="string">"account_email profile"</span>,</span><br><span class="line">       <span class="attr">"refresh_token_expires_in"</span>:<span class="number">2591999</span>,</span><br><span class="line">       <span class="attr">"id"</span>:<span class="number">1056808462</span>,</span><br><span class="line">       <span class="attr">"properties"</span>:&#123;  </span><br><span class="line">          <span class="attr">"nickname"</span>:<span class="string">"이종학"</span>,</span><br><span class="line">          <span class="attr">"profile_image"</span>:<span class="string">"http://k.kakaocdn.net/dn/bu6KcI/btqvJSMkboY/k9XRhVYKqKD7A75QS3gnI0/profile_640x640s.jpg"</span>,</span><br><span class="line">          <span class="attr">"thumbnail_image"</span>:<span class="string">"http://k.kakaocdn.net/dn/bu6KcI/btqvJSMkboY/k9XRhVYKqKD7A75QS3gnI0/profile_110x110c.jpg"</span></span><br><span class="line">       &#125;,</span><br><span class="line">       <span class="attr">"kakao_account"</span>:&#123;  </span><br><span class="line">          <span class="attr">"has_email"</span>:<span class="literal">true</span>,</span><br><span class="line">          <span class="attr">"email_needs_agreement"</span>:<span class="literal">false</span>,</span><br><span class="line">          <span class="attr">"is_email_valid"</span>:<span class="literal">true</span>,</span><br><span class="line">          <span class="attr">"is_email_verified"</span>:<span class="literal">true</span>,</span><br><span class="line">          <span class="attr">"email"</span>:<span class="string">"enenfru@nate.com"</span></span><br><span class="line">       &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
-<h3 id="마치며"><a href="#마치며" class="headerlink" title="마치며"></a>마치며</h3><p>Oauth 로그인을 라이브러리 없이 직접 구현해봤습니다. 실제 3~4일을 삽질했던것 같네요. 이렇게 직접 구현해 본 후, 다른 provider 도 이와 같이 쉽게 구현 할 수 있을 것 같습니다.  </p>
+<h2 id="마치며"><a href="#마치며" class="headerlink" title="마치며"></a>마치며</h2><p>Oauth 로그인을 라이브러리 없이 직접 구현해봤습니다. 실제 3~4일을 삽질했던것 같네요. 이렇게 직접 구현해 본 후, 다른 provider 도 이와 같이 쉽게 구현 할 수 있을 것 같습니다.  </p>
+<h2 id="참고"><a href="#참고" class="headerlink" title="참고"></a>참고</h2><ul>
+<li><p>생활코딩 - <a href="https://opentutorials.org/course/3405" target="_blank" rel="noopener">https://opentutorials.org/course/3405</a></p>
+<ul>
+<li>개념 및 실습 위주의 동영상 강의입니다.</li>
+</ul>
+</li>
+<li><p>네이버 D2 - <a href="https://d2.naver.com/helloworld/24942" target="_blank" rel="noopener">https://d2.naver.com/helloworld/24942</a></p>
+<ul>
+<li>OAuth 및 이와 관련된 내용이 잘 설명되어 있다.</li>
+</ul>
+</li>
+</ul>
             
 
         </div>
@@ -402,7 +432,7 @@
             <div class="post-footer-tags">
                 <span class="text-color-light text-small">TAGGED IN</span><br>
                 
-    <a class="tag tag--primary tag--small t-link" href="/tags/Oauth2/">Oauth2</a> <a class="tag tag--primary tag--small t-link" href="/tags/kakao/">kakao</a>
+    <a class="tag tag--primary tag--small t-link" href="/tags/OAuth2/">OAuth2</a> <a class="tag tag--primary tag--small t-link" href="/tags/kakao/">kakao</a>
 
             </div>
         
