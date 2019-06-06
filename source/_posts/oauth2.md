@@ -58,7 +58,7 @@ coverImage: cover.jpg
 
 위키백과 정의에 따르면, OAuth는 인터넷 사용자들이 비밀번호를 제공하지 않고 다른 웹사이트 상의 자신들의 정보에 대해 웹사이트나 애플리케이션의 접근 권한을 부여할 수 있는 공통적인 수단으로서 사용되는, 접근 위임을 위한 개방형 표준입니다. 사용자가 애플리케이션에게 <u>모든 권한을 넘기지 않고 사용자 대신 서비스를 이용할 수 있게 해주는</u> HTTP 기반의 보안 프로토콜 입니다.
 
-OAuth를 사용하는 서비스 제공자는 대표적으로 구글, 페이스북 등이 있습니다. 국내에는 대표젹으로 네이버와 카카오가 있죠. 
+OAuth를 사용하는 서비스 제공자는 대표적으로 구글, 페이스북 등이 있습니다. 국내에는 대표적으로 네이버와 카카오가 있죠. 
 
 OAuth 에서 Auth는 Authentication(인증) & Authorization(허가) 2가지 의미를 포함하고 있습니다. 예를 들어 <u>'서비스 제공자를 대신하여 제 3자가 어떤 정보를 사용하도록 접근을 허용하겠는가?'</u> 라는 물음을 보신적이 있으실 겁니다. 여기서 제 3자는 여러분들이 이용 할 서비스 입니다. 이 물음에 동의하면, 먼저 서비스 제공자에게 자신을 인증하고 제 3자에게 자신의 정보를 사용하도록 접근 권한을 부여 하는 것입니다.
 
@@ -66,7 +66,7 @@ OAuth 로 인해 사용자 입장에서는 더욱더 여러 서비스들을 하�
 
 #### OAuth2 역할
 
-{% image fancybox center clear group:travel OAuth-architecture.png "OAuth2 설계도" 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/ %}
+{% image fancybox center clear group:travel oauth2-flow.png "OAuth2 설계도" 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/ %}
 
 위 이미지를 보시면, 총 4가지 역할로 구분 할 수 있습니다.
 <br>
@@ -82,7 +82,7 @@ OAuth 로 인해 사용자 입장에서는 더욱더 여러 서비스들을 하�
   - Client 에게 Access token 을 발행합니다.
 
 4. 클라이언트 (Client) 
-  - 구글, 페이스북 등 OAuth 를 사용하는 서비스를 뜻합니다. 
+  - 제 3자 어플리케이션을 의미합니다.
   - 이는 사용자 동의하에 Resource Server 에 사용자의 특정 정보를 요청 할 수 있습니다.
 
   - provider 라고 부르기도 합니다.
@@ -153,7 +153,7 @@ Authorization Server 로 부터 발급된 랜덤한 문자열입니다. 위 이�
 
 ## 카카오 로그인 구현
 
-{% image fancybox center clear group:travel OAuth-architecture.png "OAuth2 설계도" 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/ %}
+{% image fancybox center clear group:travel oauth2-flow.png "OAuth2 설계도" 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/ %}
 
 위 이미지의 화살표에 번호가 1~5번까지 있습니다. 실제 구현에서 1번을 제외하고 2~5번 과정을 구현합니다. 전체 소스 코드는 [gitHub](https://github.com/devhaks/myNode/tree/social_login) 참고 바랍니다.
 <br>
