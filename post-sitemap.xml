@@ -8,6 +8,14 @@
     </url>
 
     <url>
+        <loc>https://devhaks.github.io/2019/06/30/docker/</loc>
+        <lastmod>2019-06-30T14:50:18.568Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
         <loc>https://devhaks.github.io/2019/05/31/oauth2/</loc>
         <lastmod>2019-06-06T14:02:13.317Z</lastmod>
         <changefreq>weekly</changefreq>
