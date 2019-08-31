@@ -11,7 +11,7 @@
     
     
     
-    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n목차\nDocker 란\n\nImages and containers\n\n\nDocker 실습\n\nDocker hub 가입\n\nDocker 설치\n\nDocker 어플리케이션 컨테이너 생성\n\n\n\n참고\n\n\nDocker 란Docker는 개발자와 시스템 관리자가 컨테이너를 사용하여 응용 프로그램을 개발, 배포 및 실행하기위한 플랫폼입니다.\nLinux 컨테이너를 사용하여 응용 프로그램을 배포하는 것을 컨테이너화 라고 부릅니다. 컨테이너는 새로운 것은 아니지만 쉽게 응용 프로그램을 배포하는데 사용됩니다.\n아래 컨테이너의 장점이 있기 때문에 컨테이너화가 점점 더 인기를 얻고 있습니다.\n\nFlexible(유연성) : 가장 복잡한 애플리케이션조차도 컨테이너화할 수 있습니다.\n\nLightweight(경량) : 컨테이너는 호스트 커널을 활용하고 공유합니다.\n\nInterchangeable(교환 가능) : 업데이트 및 업그레이드를 즉시 배포 할 수 있습니다.\n\nPortable(휴대성) : 로컬로 구축하고, 클라우드에 배치하고, 어디서나 실행할 수 있습니다.\n\nScalable(확장성) : 컨테이너 복제본을 늘리고 자동으로 배포 할 수 있습니다.\n\nStackable(스택 가능) : 서비스를 세로 및 가로로 쌓을 수 있습니다.\n\n\nImages and containers컨테이너는 이미지를 실행하여 시작됩니다. 이미지는 응용 프로그램을 실행하는 데 필요한 모든 것을 포함하는 실행 가능한 패키지입니다. (코드, 런타임, 라이브러리, 환경 변수 및 구성 파일)\n컨테이너는 이미지의 런타임 인스턴스입니다. 즉, 이미지가 실행될 때 메모리에 저장됩니다 (즉, 상태가있는 이미지 또는 사용자 프로세스). \nLinux에서와 마찬가지로 실행중인 컨테이너 목록을 docker ps 명령으로 볼 수 있습니다.\nDocker 실습도커 실습 내용으로는 간단한 nodejs express 어플리케이션을 만들어 봅니다.\nDocker hub 가입실습 전, Docker hub에 가입 합니다. Docker hub는 Image 또는 여러 Image를 활용하여 build 한 또 다른 Image를 모아 놓은 저장소 입니다. \nGit hub 와 유사하다고 생각하시면 됩니다.\nDocker 설치개발 OS 환경에 따라 설치를 진행 합니다. 설치가 완료되면, 아래 처럼 확인합니다. \n  12$ docker --versionDocker version 18.09.2, build 6247962\ndocker 명령어가 실행되지 않는다면, 터미널을 재시작 합니다.\nDocker 어플리케이션 컨테이너 생성\nnodejs 이미지를 다운로드 받습니다. https://hub.docker.com/_/node\n123456789$ docker pull node# 이미지 다운로드 과정 출력 생략... Status: Downloaded newer image for node:latest# 도커 이미지 목록$ docker images REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZEnode                        latest              70ea061fdf3a        39 hours ago        907MB\n\nNodejs Image 로 컨테이너를 생성합니다.\n12$ docker run -dit -p 3030:3030 --name myNodeApp 70ea061fdf3a151c943f1e46a52fbdf8a0dbb619077eed553467c2875c71da5f7b51823bf260\n\n옵션 설명\n-d : 백그라운드에서 실행하기 위한 daemon 실행하기\n-p : 컨테이너 포트 포워딩 설정. http://localhost:3030 으로 접속 시, 컨테이너의 3030포트로 포워딩하기\n–name : 컨테이너의 이름 설정\n마지막에는 image ID 70ea061fdf3a를 기입\n\n\n\n\n컨테이너 생성 확인하기\n\n-a 옵션으로 status 상광 없이 모든 컨테이너 출력함.\n\n123$ docker ps -a CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                      NAMES151c943f1e46        70ea061fdf3a        \"docker-entrypoint.s…\"   37 seconds ago      Up 35 seconds       0.0.0.0:3030-&gt;3030/tcp       myNodeApp\n\n컨테이너 접속 및 node &amp; npm 버전 확인\n\n컨테이너 이름 myNodeApp 대신 컨테이너 ID 151c943f1e46 사용함.\n접속하면 기본적으로 root 계정이고 host 는 컨테이너 ID 로 지정됨. \n컨테이너에는 vim 이 기본적으로 설치 되어 있지 않기 때문에 추가적으로 vim 을 설치함. \n\n12345678910# bash 쉘로 컨테이너 접속하기$ docker exec -it myNodeApp bash # 기본 root 계정root@151c943f1e46:/## node &amp; npm 버전 확인root@151c943f1e46:/# node -v &amp;&amp; npm -vv12.5.06.9.0# vim 패키지 설치root@151c943f1e46:/home/app# apt update &amp;&amp; apt install -y vim\n\n어플리케이션 파일 추가하기\n\n미리 준비한 git code 를 clone 함.\n\n123456789101112root@151c943f1e46:/# cd /home root@151c943f1e46:/home# git clone https://github.com/devhaks/myNode.gitroot@151c943f1e46:/home# cd myNode# 패키지 설치 root@151c943f1e46:/home/myNode# npm install# node app 실행root@151c943f1e46:/home/myNode# node index.js===========================  http://localhost:3030===========================\n\nhttp://localhost:3030 로 접속하여 정상적으로 작동하는지 확인하기\n\n\n참고\nDocker 가이드 https://docs.docker.com\n\n다음 포스트로는 Dockerfile 과 dcoker-compose 를 사용하여 한층 더 편리한 개발 환경을 구축하도록 하겠습니다.","dateCreated":"2019-06-30T23:45:53+09:00","dateModified":"2019-06-30T23:52:52+09:00","datePublished":"2019-06-30T23:45:53+09:00","description":"Docker 를 사용하여 복잡했던 개발 환경 구축을 간단한 예제를 통해 구축해 봅니다.","headline":"Docker 초급 (1)","image":["thumbnail.png","cover.png"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/06/30/docker-1/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/06/30/docker-1/","keywords":"docker","thumbnailUrl":"thumbnail.png"}</script>
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n\n목차\nDocker 란\n\nImages and containers\n\n\nDocker 실습\n\nDocker hub 가입\n\nDocker 설치\n\nDocker 어플리케이션 컨테이너 생성\n\n\n\n참고\n\n\nDocker 란Docker는 개발자와 시스템 관리자가 컨테이너를 사용하여 응용 프로그램을 개발, 배포 및 실행하기위한 플랫폼입니다.\nLinux 컨테이너를 사용하여 응용 프로그램을 배포하는 것을 컨테이너화 라고 부릅니다. 컨테이너는 새로운 것은 아니지만 쉽게 응용 프로그램을 배포하는데 사용됩니다.\n아래 컨테이너의 장점이 있기 때문에 컨테이너화가 점점 더 인기를 얻고 있습니다.\n\nFlexible(유연성) : 가장 복잡한 애플리케이션조차도 컨테이너화할 수 있습니다.\n\nLightweight(경량) : 컨테이너는 호스트 커널을 활용하고 공유합니다.\n\nInterchangeable(교환 가능) : 업데이트 및 업그레이드를 즉시 배포 할 수 있습니다.\n\nPortable(휴대성) : 로컬로 구축하고, 클라우드에 배치하고, 어디서나 실행할 수 있습니다.\n\nScalable(확장성) : 컨테이너 복제본을 늘리고 자동으로 배포 할 수 있습니다.\n\nStackable(스택 가능) : 서비스를 세로 및 가로로 쌓을 수 있습니다.\n\n\nImages and containers컨테이너는 이미지를 실행하여 시작됩니다. 이미지는 응용 프로그램을 실행하는 데 필요한 모든 것을 포함하는 실행 가능한 패키지입니다. (코드, 런타임, 라이브러리, 환경 변수 및 구성 파일)\n컨테이너는 이미지의 런타임 인스턴스입니다. 즉, 이미지가 실행될 때 메모리에 저장됩니다 (즉, 상태가있는 이미지 또는 사용자 프로세스). \nLinux에서와 마찬가지로 실행중인 컨테이너 목록을 docker ps 명령으로 볼 수 있습니다.\nDocker 실습도커 실습 내용으로는 간단한 nodejs express 어플리케이션을 만들어 봅니다.\nDocker hub 가입실습 전, Docker hub에 가입 합니다. Docker hub는 Image 또는 여러 Image를 활용하여 build 한 또 다른 Image를 모아 놓은 저장소 입니다. \nGit hub 와 유사하다고 생각하시면 됩니다.\nDocker 설치개발 OS 환경에 따라 설치를 진행 합니다. 설치가 완료되면, 아래 처럼 확인합니다. \n  12$ docker --versionDocker version 18.09.2, build 6247962\n\ndocker 명령어가 실행되지 않는다면, 터미널을 재시작 합니다.\nDocker 어플리케이션 컨테이너 생성\nnodejs 이미지를 다운로드 받습니다. https://hub.docker.com/_/node\n123456789$ docker pull node# 이미지 다운로드 과정 출력 생략... Status: Downloaded newer image for node:latest# 도커 이미지 목록$ docker images REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZEnode                        latest              70ea061fdf3a        39 hours ago        907MB\n\nNodejs Image 로 컨테이너를 생성합니다.\n12$ docker run -dit -p 3030:3030 --name myNodeApp 70ea061fdf3a151c943f1e46a52fbdf8a0dbb619077eed553467c2875c71da5f7b51823bf260\n\n\n옵션 설명\n-d : 백그라운드에서 실행하기 위한 daemon 실행하기\n-p : 컨테이너 포트 포워딩 설정. http://localhost:3030 으로 접속 시, 컨테이너의 3030포트로 포워딩하기\n–name : 컨테이너의 이름 설정\n마지막에는 image ID 70ea061fdf3a를 기입\n\n\n\n\n컨테이너 생성 확인하기\n\n-a 옵션으로 status 상관 없이 모든 컨테이너 출력.\n\n123$ docker ps -a CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                      NAMES151c943f1e46        70ea061fdf3a        \"docker-entrypoint.s…\"   37 seconds ago      Up 35 seconds       0.0.0.0:3030-&gt;3030/tcp       myNodeApp\n\n컨테이너 접속 및 node &amp; npm 버전 확인\n\n컨테이너 이름 myNodeApp 대신 컨테이너 ID 151c943f1e46 사용함.\n접속하면 기본적으로 root 계정이고 host 는 컨테이너 ID 로 지정됨. \n컨테이너에는 vim 이 기본적으로 설치 되어 있지 않기 때문에 추가적으로 vim 을 설치함. \n\n12345678910# bash 쉘로 컨테이너 접속하기$ docker exec -it myNodeApp bash # 기본 root 계정root@151c943f1e46:/## node &amp; npm 버전 확인root@151c943f1e46:/# node -v &amp;&amp; npm -vv12.5.06.9.0# vim 패키지 설치root@151c943f1e46:/home/app# apt update &amp;&amp; apt install -y vim\n\n어플리케이션 파일 추가하기\n\n미리 준비한 git code 를 clone 함.\n\n123456789101112root@151c943f1e46:/# cd /home root@151c943f1e46:/home# git clone https://github.com/devhaks/myNode.gitroot@151c943f1e46:/home# cd myNode# 패키지 설치 root@151c943f1e46:/home/myNode# npm install# node app 실행root@151c943f1e46:/home/myNode# node index.js===========================  http://localhost:3030===========================\n\nhttp://localhost:3030 로 접속하여 정상적으로 작동하는지 확인하기\n\n\n참고\nDocker 가이드 https://docs.docker.com\n\n다음 포스트로는 Dockerfile 과 dcoker-compose 를 사용하여 한층 더 편리한 개발 환경을 구축하도록 하겠습니다.","dateCreated":"2019-06-30T23:45:53+09:00","dateModified":"2019-08-25T15:52:58+09:00","datePublished":"2019-06-30T23:45:53+09:00","description":"Docker 를 사용하여 복잡했던 개발 환경 구축을 간단한 예제를 통해 구축해 봅니다.","headline":"Docker 초급 (1)","image":["thumbnail.png","cover.png"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/06/30/docker-1/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/06/30/docker-1/","keywords":"docker","thumbnailUrl":"thumbnail.png"}</script>
     
     
     
@@ -42,7 +42,7 @@
 <meta property="og:site_name" content="Devhaks 개발 저장소">
 <meta property="og:description" content="Docker 를 사용하여 복잡했던 개발 환경 구축을 간단한 예제를 통해 구축해 봅니다.">
 <meta property="og:locale" content="en">
-<meta property="og:updated_time" content="2019-06-30T14:52:52.036Z">
+<meta property="og:updated_time" content="2019-08-25T06:52:58.319Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Docker 초급 (1)">
 <meta name="twitter:description" content="Docker 를 사용하여 복잡했던 개발 환경 구축을 간단한 예제를 통해 구축해 봅니다.">
@@ -89,10 +89,11 @@
 
     
         
-            <a class="header-right-picture " href="/me">
+            <a  class="header-right-picture "
+                href="/me">
         
         
-            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture">
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture"/>
         
         </a>
     
@@ -136,7 +137,7 @@
         
             <div class="sidebar-profile">
                 <a href="/#about">
-                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
                 </a>
                 <h4 class="sidebar-profile-name">이종학</h4>
                 
@@ -150,7 +151,11 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link " href="/ " title="Home">
+                        <a  class="sidebar-button-link "
+                             href="/ "
+                            
+                            title="Home"
+                        >
                     
                         <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">Home</span>
@@ -159,7 +164,11 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link " href="/all-categories" title="Categories">
+                        <a  class="sidebar-button-link "
+                             href="/all-categories"
+                            
+                            title="Categories"
+                        >
                     
                         <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">Categories</span>
@@ -168,7 +177,11 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link " href="/all-tags" title="Tags">
+                        <a  class="sidebar-button-link "
+                             href="/all-tags"
+                            
+                            title="Tags"
+                        >
                     
                         <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">Tags</span>
@@ -177,7 +190,11 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link " href="/all-archives" title="Archives">
+                        <a  class="sidebar-button-link "
+                             href="/all-archives"
+                            
+                            title="Archives"
+                        >
                     
                         <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">Archives</span>
@@ -186,7 +203,11 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link open-algolia-search" href="#search" title="Search">
+                        <a  class="sidebar-button-link open-algolia-search"
+                             href="#search"
+                            
+                            title="Search"
+                        >
                     
                         <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">Search</span>
@@ -195,7 +216,11 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link " href="/me" title="About">
+                        <a  class="sidebar-button-link "
+                             href="/me"
+                            
+                            title="About"
+                        >
                     
                         <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">About</span>
@@ -208,7 +233,7 @@
             
                 <li class="sidebar-button">
                     
-                        <a class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                        <a  class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
                     
                         <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
                         <span class="sidebar-button-desc">GitHub</span>
@@ -223,7 +248,9 @@
             
         <div class="post-header-cover
                     text-left
-                    post-header-cover--full" style="background-image:url('/2019/06/30/docker-1/cover.png');" data-behavior="5">
+                    post-header-cover--full"
+             style="background-image:url('/2019/06/30/docker-1/cover.png');"
+             data-behavior="5">
             
                 <div class="post-header main-content-wrap text-left">
     
@@ -259,6 +286,7 @@
     <div class="post-content markdown">
         <div class="main-content-wrap">
             <!-- excerpt -->
+
 <h2 id="목차"><a href="#목차" class="headerlink" title="목차"></a>목차</h2><ul>
 <li><p><a href="#Docker-란">Docker 란</a></p>
 <ul>
@@ -303,6 +331,7 @@
 <p>Git hub 와 유사하다고 생각하시면 됩니다.</p>
 <h4 id="Docker-설치"><a href="#Docker-설치" class="headerlink" title="Docker 설치"></a>Docker 설치</h4><p>개발 OS 환경에 따라 <a href="https://hub.docker.com/?overlay=onboarding" target="_blank" rel="noopener">설치</a>를 진행 합니다. 설치가 완료되면, 아래 처럼 확인합니다. </p>
   <figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ docker --version</span><br><span class="line">Docker version 18.09.2, build 6247962</span><br></pre></td></tr></table></figure>
+
 <p>docker 명령어가 실행되지 않는다면, 터미널을 재시작 합니다.</p>
 <h4 id="Docker-어플리케이션-컨테이너-생성"><a href="#Docker-어플리케이션-컨테이너-생성" class="headerlink" title="Docker 어플리케이션 컨테이너 생성"></a>Docker 어플리케이션 컨테이너 생성</h4><ul>
 <li><p>nodejs 이미지를 다운로드 받습니다. <a href="https://hub.docker.com/_/node" target="_blank" rel="noopener">https://hub.docker.com/_/node</a></p>
@@ -310,6 +339,7 @@
 </li>
 <li><p>Nodejs Image 로 컨테이너를 생성합니다.</p>
 <figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -dit -p 3030:3030 --name myNodeApp 70ea061fdf3a</span><br><span class="line">151c943f1e46a52fbdf8a0dbb619077eed553467c2875c71da5f7b51823bf260</span><br></pre></td></tr></table></figure>
+
 <ul>
 <li>옵션 설명<ul>
 <li>-d : 백그라운드에서 실행하기 위한 daemon 실행하기</li>
@@ -322,7 +352,7 @@
 </li>
 <li><p>컨테이너 생성 확인하기</p>
 <ul>
-<li><code>-a</code> 옵션으로 status 상광 없이 모든 컨테이너 출력함.</li>
+<li><code>-a</code> 옵션으로 status 상관 없이 모든 컨테이너 출력.</li>
 </ul>
 <figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ docker ps -a </span><br><span class="line">CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                      NAMES</span><br><span class="line">151c943f1e46        70ea061fdf3a        <span class="string">"docker-entrypoint.s…"</span>   37 seconds ago      Up 35 seconds       0.0.0.0:3030-&gt;3030/tcp       myNodeApp</span><br></pre></td></tr></table></figure>
 </li>
@@ -355,7 +385,7 @@
     <div id="post-footer" class="post-footer main-content-wrap">
         
             <div class="post-footer-tags">
-                <span class="text-color-light text-small">TAGGED IN</span><br>
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
                 
     <a class="tag tag--primary tag--small t-link" href="/tags/docker/">docker</a>
 
@@ -367,10 +397,13 @@
         <ul class="post-actions post-action-nav">
             <li class="post-action">
                 
-                    <!-- <a class="post-action-btn btn btn--disabled">
-                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/08/25/aws-lambda-image-resizing/" data-tooltip="[AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징" aria-label="PREVIOUS: [AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징">
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="text-small icon-ml">[AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징</span>
+                        <!-- <span class="hide-xs hide-sm text-small icon-ml">[AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징</span> -->
                 
-                
+                </a>
             </li>
             <li class="post-action">
                 
@@ -472,10 +505,12 @@ s.setAttribute('data-timestamp', +new Date());
         <ul class="post-actions post-action-nav">
             <li class="post-action">
                 
-                    <!-- <a class="post-action-btn btn btn--disabled">
-                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/08/25/aws-lambda-image-resizing/" data-tooltip="[AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징" aria-label="PREVIOUS: [AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징">
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">[AWS] CloudFront Lambda@edge 를 이용한 이미지 리사이징</span>
                 
-                
+                </a>
             </li>
             <li class="post-action">
                 
@@ -563,7 +598,7 @@ s.setAttribute('data-timestamp', +new Date());
             <i class="fa fa-times"></i>
         </div>
         
-            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture">
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
         
             <h4 id="about-card-name">이종학</h4>
         
@@ -573,7 +608,7 @@ s.setAttribute('data-timestamp', +new Date());
         
             <div id="about-card-job">
                 <i class="fa fa-briefcase"></i>
-                <br>
+                <br/>
                 <p>Software developer</p>
 
             </div>
