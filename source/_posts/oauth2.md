@@ -85,7 +85,6 @@ OAuth 로 인해 사용자 입장에서는 더욱더 여러 서비스들을 하�
   - 제 3자 어플리케이션을 의미합니다.
   - 이는 사용자 동의하에 Resource Server 에 사용자의 특정 정보를 요청 할 수 있습니다.
 
-  - provider 라고 부르기도 합니다.
   
 {% alert info %}
 Resource Server 와 Authorization Server 를 구축한 대상을 Provider 라고 부르기도 합니다.
@@ -155,7 +154,7 @@ Authorization Server 로 부터 발급된 랜덤한 문자열입니다. 위 이�
 
 {% image fancybox center clear group:travel oauth2-flow.png "OAuth2 설계도" 이미지 출처 - http://blogs.innovationm.com/spring-security-with-oauth2/ %}
 
-위 이미지의 화살표에 번호가 1~5번까지 있습니다. 실제 구현에서 1번을 제외하고 2~5번 과정을 구현합니다. 전체 소스 코드는 [gitHub](https://github.com/devhaks/myNode/tree/social_login) 참고 바랍니다.
+위 이미지의 화살표에 번호가 1-5번까지 있습니다. 실제 구현에서 1번을 제외하고 2-5번 과정을 구현합니다. 전체 소스 코드는 [gitHub](https://github.com/devhaks/myNode/tree/social_login) 참고 바랍니다.
 <br>
 1. 이 과정은 provider 내부에서 이뤄지기 때문에 구현하는 부분에서 제외합니다.
 
