@@ -1,6 +1,6 @@
 ---
 title: '[AWS] CodeBuild 로컬 테스트 및 디버깅'
-date: 2019-08-25 15:49:12
+date: 2019-09-30 12:00:00
 tags:
   - aws
   - codebuild
@@ -175,12 +175,19 @@ coverImage: cover.png
   ```
 
   - local build 테스트하기
-  
+
   ```bash
   # aws/codebuild/nodejs 의 image_id => 03c41ff10894
   # 현재 경로의 artifacts 디렉토리에 결과물 저장하도록 설정
   aws $ ./codebuild_build.sh -i 03c41ff10894 -a ./artifacts
+  ```
 
+  {% alert warning %}
+  주의할 점은 빌드를 진행하면 프로젝트 내의 모든 파일들을 빌드 컨테이너에 다운로드 합니다. 만약 프로젝트의 패키지가 포함되어 있으면 다운로드 시간이 오래 걸립니다. 
+  그러므로 패키지를 삭제 또는 프로젝트 외부에 잠시 옮겨 놓고 빌드 테스트를 진행 하는 것이 빠릅니다.
+  {% endalert %}
+
+  ```bash
   Creating network "agent-resources_default" with the default driver
   Creating volume "agent-resources_source_volume" with local driver
   Creating volume "agent-resources_user_volume" with local driver
