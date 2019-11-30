@@ -1,0 +1,642 @@
+
+<!DOCTYPE html>
+<html lang="en,default">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Devhaks 개발 저장소">
+    <title>MongoDB 데이터 관계 모델링 - Devhaks 개발 저장소</title>
+    <meta name="author" content="이종학">
+    
+    
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n\n목차\n배경\n\nDocument 관계 데이터 저장 유형\n\nEmbedded\nReference\n\n\nDocument 관계 유형\n\nOne-to-One\nOne-to-Many\nMany-to-Many\n\n\n마치며\n\n참고\n\n\n배경학교 프로젝트를 진행 했을 때, 처음으로 접한 데이터베이스는 RDBMS 중에 하나인 MySQL 을 사용했었습니다. 그 이후로 전세계 점유율이 가장 높은 CMS(Content Management System) 인 Wordpress 를 사용하여 외주 개발을 하면서도 MySQL에 점점 익숙해졌던것 같습니다. 그리고 Wordpress가 MySQL 을 어떻게 사용하고 있는지 Data modeling 관점에서도 현재까지 아주 많은 도움이 되고 있습니다. \n지금 다니는 회사는 MongoDB를 사용하고 있는데, 회사의 서비스를 초창기 개발하면서 NoSQL(Not Only SQL)인 MongoDB 를 처음으로 접했습니다. NoSQL 이라고 해서 관계가 없는 데이터베이스라고 생각했었지만 찾아본 내용으로는 NoSQL이 무엇의 약자인지는 사람에 따라 NoSQL, Not Only SQL, Non-Relational Operational Database SQL로 엇갈리는 의견들이 있습니다만, 현재 Not Only SQL로 풀어 설명하는 것이 다수를 차지하고 있다고 합니다.\n즉, 쉽게 말하면 관계형 데이터베이스 + @ 라고 이해하면 쉽겠네요. 그러면 의문 생기는데 “과연 RDMBS 처럼 관계 모델링 방법이 같을까요?”\n이에 대한 의문을 해소하기 위해 MongoDB 공식 문서를 살펴 보겠습니다. \nDocument 관계 데이터 저장 유형Document에 데이터를 저장 할 때, 어떠한 데이터 유형으로 저장 할 수 있을까요? 다들 아시는 것처럼 여러가지가 있습니다. Number, String, Boolean, Date, Array, Object, Pointer 등이 있습니다. 데이터베이스 마다 지원하는 데이터 유형은 제각각입니다. 여기서는 MongoDB 에 대해서만 설명하겠습니다.\n그러면 mongoDB는 관계 모델링을 할 때, 어떤 데이터 유형을 사용해서 관계를 저장 할까요? \nEmbeddedEmbedded 저장 방법은 2가지 종류의 Document가 있을 때, 1개의 Document 데이터를 다른 Document key의 value에 저장하는 방법입니다.\n2가지 종류의 Person, Address Document가 있습니다.\n1234567891011121314// Person &#123;   _id: \"joe\",   name: \"Joe Bookreader\"&#125;// Address&#123;   pataron_id: \"joe\",   street: \"123 Fake Street\",   city: \"Faketon\",   state: \"MA\",   zip: \"12345\"&#125;\n\n위의 Document를 Embedded 방식으로 관계를 저장하면 다음과 같습니다. Person.address 에 Address Document가 통째로 저장되어 있는 것을 확인 하실 수 있습니다.\n1234567891011121314151617181920// Person &#123;   _id: \"joe\",   name: \"Joe Bookreader\",   address: &#123;      street: \"123 Fake Street\",      city: \"Faketon\",      state: \"MA\",      zip: \"12345\"  &#125;&#125;// Address&#123;   pataron_id: \"joe\",   street: \"123 Fake Street\",   city: \"Faketon\",   state: \"MA\",   zip: \"12345\"&#125;\n\nReferenceReference 저장 방법은 pointer 개념으로 이해하면 쉬울 것 같습니다. Embedded 방식과 달리 Document를 통째로 저장하는것이 아니라 참조 할 수 있도록 ID를 저장하는 것입니다.\n2가지 종류의 Publisher, Book Document가 있습니다. Book Document를 유심히 확인해 봅시다. 어떤게 눈의 띄는지 보이시나요? 바로 Book.publisher_id 에 Publisher._id 의 value 가 저장되어 있습니다.\n12345678910111213141516171819// Publisher&#123;   _id: \"oreilly\",   name: \"O'Reilly Media\",   founded: 1980,   location: \"CA\"&#125;// Book&#123;   _id: 123456789,   title: \"MongoDB: The Definitive Guide\",   author: [ \"Kristina Chodorow\", \"Mike Dirolf\" ],   published_date: ISODate(\"2010-09-24\"),   pages: 216,   language: \"English\",   publisher_id: \"oreilly\" // &lt;- Publisher._id&#125;\n\n2가지 저장 방식을 통하여 이제 어떻게 데이터를 저장하여 관계를 알 수 있는지 살펴보았습니다.\nDocument 관계 유형이부분은 이제 관계를 얼마나 맺을 것이가에 대해 살펴보겠습니다. \nOne-to-One단순한 1:1 관계입니다. 이 관계 유형을 비유하자면, Embedded 예시를 든 것처럼 Person이 실제 주민등록상 거주지가 Address 인 것으로 시나리오를 가정하는 관계 유형입니다.\nOne-to-Many앞서 Reference의 예제를 재활용하여 이번에는 1개의 Publisher Document 와 2개의 Book Document 가 있습니다.\n이 예제의 가정은 Book 은 무조건 1개의 Publisher 만 갖는다 라고 설정하겠습니다. \nEmbedded 방식으로 했을 때, 데이터 구조는 어떻게 저장 될까요? Book.publisher의 value 에는 Publisher 데이터가 통째로 저장되어 있네요. \n123456789101112131415161718192021222324252627282930313233343536373839// Publisher&#123;   _id: \"oreilly\",   name: \"O'Reilly Media\",   founded: 1980,   location: \"CA\"&#125;// Book 1&#123;   _id: 123456789,   title: \"MongoDB: The Definitive Guide\",   author: [ \"Kristina Chodorow\", \"Mike Dirolf\" ],   published_date: ISODate(\"2010-09-24\"),   pages: 216,   language: \"English\",   publisher: &#123;      name: \"O'Reilly Media\",      founded: 1980,      location: \"CA\"   &#125;&#125;// Book 2&#123;   _id: 234567890,   title: \"50 Tips and Tricks for MongoDB Developer\",   author: \"Kristina Chodorow\",   published_date: ISODate(\"2011-05-06\"),   pages: 68,   language: \"English\",   publisher: &#123;      name: \"O'Reilly Media\",      founded: 1980,      location: \"CA\"   &#125;&#125;\n\nReference 방식으로 했을 때, 2개의 Book.publisher_id 의 value 는 Publisher._id value 가 저장되어 있습니다.\n12345678910111213141516171819202122232425262728293031// Publisher&#123;   _id: \"oreilly\",   name: \"O'Reilly Media\",   founded: 1980,   location: \"CA\"&#125;// Book 1&#123;   _id: 123456789,   title: \"MongoDB: The Definitive Guide\",   author: [ \"Kristina Chodorow\", \"Mike Dirolf\" ],   published_date: ISODate(\"2010-09-24\"),   pages: 216,   language: \"English\",   publisher_id: \"oreilly\" // &lt;- Publisher._id&#125;// Book 2&#123;   _id: 234567890,   title: \"50 Tips and Tricks for MongoDB Developer\",   author: \"Kristina Chodorow\",   published_date: ISODate(\"2011-05-06\"),   pages: 68,   language: \"English\",   publisher_id: \"oreilly\" // &lt;- Publisher._id&#125;\n\nOne-to-Many 관계에서 Embedded 와 Reference 방식으로 비교하여 봅시다. 그냥 데이터가 저장된 형태만 봐서는 비교가 되질 않을 것 같습니다. 비교를 하기 위해 적절한 시나리오를 설정하겠습니다.\n시나리오 1만약 publisher 의 ‘name’ 을 변경하거나 ‘age’ 라는 데이터를 추가해야 하는 경우에 DB를 수정해야 하는데, 어떻게 수정해야 할까요?\nEmbedded 방식으로 저장된 데이터는 Publisher, Book 의 Document 를 모두 수정해서 데이터의 일관성을 유지해야 합니다.\nReference 방식으로 저장된 데이터는 Publisher Document 만 수정해주면 참조하고 있는 모든 Document 는 수정할 필요가 없습니다. 자연스럽게 데이터의 일관성이 유지가 됩니다.\n시나리오 2다음과 같이 Document 가 모두 관계가 저장되어 있습니다.\n\nPublisher Document 개수: 100개\nBook Document 개수: 100만개\n\n극단적으로 100만개의 Book Document 를 Publisher 정보를 포함하여 불러오려고 할 때, 어떤 차이점을 발견 할 수 있을까요?\nEmbedded 방식으로 저장된 데이터는 아무런 어려움 없이 Book Document 를 가져 올 때, Publisher 정보를 통째로 가져올 수 있습니다.\nReference 방식으로 저장된 데이터는 Publisher_id 에 해당되는 Publisher 정보를 포함하도록 요청해서 가져와야 하기 때문에 한번의 요청만으로는 Publisher 정보를 가져 올 수는 없을 것입니다. 즉, 추가적인 요청을 해야만 Publisher 정보를 가져 올 수 있다는 말입니다.\n단편적으로 시나리오 1과 2만을 같이 고려 할 때, Embedded 또는 Reference 둘 중 어떠한 저장 방법이 효율적일지는 서비스의 기획에 따라 달라 질 것 같습니다. 퍼포먼스의 중점을 둔다면 시나리오2를 선택하여 빠른 시간내에 데이터를 불러와야 할 것이고 유지 보수 중점을 둔다면 시나리오1을 선택할 수도 있을 것입니다.\nMany-to-ManyOne-to-Many 관계에서 확장된 관계 유형입니다. Document 관계가 m:n 입니다. \nPublisher 와 Book 의 관계를 예시로 들면, One-to-Many 에서 Book의 Publisher 가 1개 이상이 될 수 있는 구조로 되는 것입니다.\nOne-to-Many 에서 Publisher:Book = 1:n 이었지만, Many-to-Many 는 m:n 이 가능한 구조입니다. 아래 예시를 보시면 Book.publisher_id value 가 1개 이상의 Publisher.id를 참조하고 있습니다.\n12345678910111213141516171819202122232425262728293031323334353637383940// Publisher 1&#123;   _id: \"oreilly\",   name: \"O'Reilly Media\",   founded: 1980,   location: \"CA\"&#125;// Publisher 2&#123;   _id: \"devhak\",   name: \"devhak'Reilly Media\",   founded: 1980,   location: \"CA\"&#125;// Book 1&#123;   _id: 123456789,   title: \"MongoDB: The Definitive Guide\",   author: [ \"Kristina Chodorow\", \"Mike Dirolf\" ],   published_date: ISODate(\"2010-09-24\"),   pages: 216,   language: \"English\",   publisher_id: [\"oreilly\", \"devhak\"] // &lt;- Publisher._id&#125;// Book 2&#123;   _id: 234567890,   title: \"50 Tips and Tricks for MongoDB Developer\",   author: \"Kristina Chodorow\",   published_date: ISODate(\"2011-05-06\"),   pages: 68,   language: \"English\",   publisher_id: [\"oreilly\", \"devhak\"] // &lt;- Publisher._id&#125;\n\n마치며Database 의 구조는 실제 서비스를 구현하는 환경 및 개발 인력, 서비스의 규모에 따라, 많이 다를 수 있다고 생각합니다. 하지만, 지극히 개인적인 생각은 스타트업 처럼 서비스의 규모가 작은 상태에서 서비스의 초기에는 시나리서오 1의 퍼포먼스 보다는 시나리오 2의 개발의 편의성과 효율성에 초점을 두고 진행해야 개발의 속도에 조금이나마 도움이 될 것이라고 생각합니다.\n참고\nModel Relationships Between Documents\n","dateCreated":"2019-11-30T16:08:01+09:00","dateModified":"2019-11-30T23:20:42+09:00","datePublished":"2019-11-30T16:08:01+09:00","description":"이번 포스팅은 NoSQL의 대표적인 mongoDB 는 어떻게 데이터 관계를 모델링 하는지 살펴 보겠습니다. ","headline":"MongoDB 데이터 관계 모델링","image":["thumbnail.png","cover.jpg"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/11/30/mongodb-model-relationships/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/11/30/mongodb-model-relationships/","keywords":"mongoDB, data relationships, data modeling, NoSQL","thumbnailUrl":"thumbnail.png"}</script>
+    
+    
+    
+        
+    
+
+    
+        <meta property="og:image" content="https://devhaks.github.io/2019/11/30/mongodb-model-relationships/thumbnail.png"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/11/30/mongodb-model-relationships/thumbnail.png" />
+    
+    
+    
+        <meta property="og:image" content="https://devhaks.github.io/2019/11/30/mongodb-model-relationships/cover.jpg"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/11/30/mongodb-model-relationships/cover.jpg" />
+    
+    
+    
+        <meta property="og:image" content="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=640"/>
+    
+    
+    
+
+    <meta name="description" content="NoSQL의 대표적인 mongoDB 데이터 관계를 모델링하는 방법">
+<meta name="keywords" content="mongoDB,data relationships,data modeling,NoSQL">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="MongoDB 데이터 관계 모델링">
+<meta property="og:url" content="https://devhaks.github.io/2019/11/30/mongodb-model-relationships/index.html">
+<meta property="og:site_name" content="Devhaks 개발 저장소">
+<meta property="og:description" content="NoSQL의 대표적인 mongoDB 데이터 관계를 모델링하는 방법">
+<meta property="og:locale" content="en">
+<meta property="og:updated_time" content="2019-11-30T14:20:42.726Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MongoDB 데이터 관계 모델링">
+<meta name="twitter:description" content="NoSQL의 대표적인 mongoDB 데이터 관계를 모델링하는 방법">
+
+
+    <!--STYLES-->
+    <link rel="stylesheet" href="/assets/css/style-dig2yh02rpgcdxsbsfha8ujj65grwfvm3xbp1gpa6w8uj8k150ymhv97ed5p.min.css">
+    <!--STYLES END-->
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-135461398-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-135461398-1');
+    </script>
+
+
+    
+</head>
+
+    <body>
+        
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+    
+
+<header id="header" data-behavior="5">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a class="header-title-link" href="/ ">Devhaks 개발 저장소</a>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
+    
+        
+            <a  class="header-right-picture "
+                href="/me">
+        
+        
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>
+            <!-- Define author's picture -->
+
+
+    
+
+<nav id="sidebar" data-behavior="5">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a href="/#about">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">이종학</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>author.bio</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/ "
+                            
+                            title="Home"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-categories"
+                            
+                            title="Categories"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-tags"
+                            
+                            title="Tags"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-archives"
+                            
+                            title="Archives"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link open-algolia-search"
+                             href="#search"
+                            
+                            title="Search"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Search</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/me"
+                            
+                            title="About"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                    
+                        <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">GitHub</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full"
+             style="background-image:url('/2019/11/30/mongodb-model-relationships/cover.jpg');"
+             data-behavior="5">
+            
+                <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            MongoDB 데이터 관계 모델링
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2019-11-30T16:08:01+09:00">
+	
+		    Nov 30, 2019
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/Database/">Database</a>
+
+
+    
+</div>
+
+    
+</div>
+
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <!-- excerpt -->
+
+<h2 id="목차"><a href="#목차" class="headerlink" title="목차"></a>목차</h2><ul>
+<li><p><a href="#배경">배경</a></p>
+</li>
+<li><p><a href="#Document-관계-데이터-저장-유형">Document 관계 데이터 저장 유형</a></p>
+<ul>
+<li><a href="#Embedded">Embedded</a></li>
+<li><a href="#Reference">Reference</a></li>
+</ul>
+</li>
+<li><p><a href="#Document-관계-유형">Document 관계 유형</a></p>
+<ul>
+<li><a href="#One-to-One">One-to-One</a></li>
+<li><a href="#One-to-Many">One-to-Many</a></li>
+<li><a href="#Many-to-Many">Many-to-Many</a></li>
+</ul>
+</li>
+<li><p><a href="#마치며">마치며</a></p>
+</li>
+<li><p><a href="#참고">참고</a></p>
+</li>
+</ul>
+<h2 id="배경"><a href="#배경" class="headerlink" title="배경"></a>배경</h2><p>학교 프로젝트를 진행 했을 때, 처음으로 접한 데이터베이스는 RDBMS 중에 하나인 MySQL 을 사용했었습니다. 그 이후로 전세계 점유율이 가장 높은 CMS(Content Management System) 인 Wordpress 를 사용하여 외주 개발을 하면서도 MySQL에 점점 익숙해졌던것 같습니다. 그리고 Wordpress가 MySQL 을 어떻게 사용하고 있는지 Data modeling 관점에서도 현재까지 아주 많은 도움이 되고 있습니다. </p>
+<p>지금 다니는 회사는 MongoDB를 사용하고 있는데, 회사의 서비스를 초창기 개발하면서 NoSQL(<br>Not Only SQL)인 MongoDB 를 처음으로 접했습니다. NoSQL 이라고 해서 관계가 없는 데이터베이스라고 생각했었지만 찾아본 내용으로는 <span style="color:red">NoSQL이 무엇의 약자인지는 사람에 따라 NoSQL, Not Only SQL, Non-Relational Operational Database SQL로 엇갈리는 의견들이 있습니다만, 현재 Not Only SQL로 풀어 설명하는 것이 다수를 차지하고 있다고 합니다.</span></p>
+<p>즉, 쉽게 말하면 <code>관계형 데이터베이스 + @</code> 라고 이해하면 쉽겠네요. 그러면 의문 생기는데 <span style="text-decoration: underline;">“과연 RDMBS 처럼 관계 모델링 방법이 같을까요?”</span></p>
+<p>이에 대한 의문을 해소하기 위해 MongoDB 공식 문서를 살펴 보겠습니다. </p>
+<h2 id="Document-관계-데이터-저장-유형"><a href="#Document-관계-데이터-저장-유형" class="headerlink" title="Document 관계 데이터 저장 유형"></a>Document 관계 데이터 저장 유형</h2><p>Document에 데이터를 저장 할 때, 어떠한 데이터 유형으로 저장 할 수 있을까요? 다들 아시는 것처럼 여러가지가 있습니다. Number, String, Boolean, Date, Array, Object, Pointer 등이 있습니다. 데이터베이스 마다 지원하는 데이터 유형은 제각각입니다. 여기서는 MongoDB 에 대해서만 설명하겠습니다.</p>
+<p>그러면 mongoDB는 관계 모델링을 할 때, 어떤 데이터 유형을 사용해서 관계를 저장 할까요? </p>
+<h4 id="Embedded"><a href="#Embedded" class="headerlink" title="Embedded"></a>Embedded</h4><p>Embedded 저장 방법은 2가지 종류의 Document가 있을 때, 1개의 Document 데이터를 다른 Document key의 value에 저장하는 방법입니다.</p>
+<p>2가지 종류의 Person, Address Document가 있습니다.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// Person </span><br><span class="line">&#123;</span><br><span class="line">   _id: "joe",</span><br><span class="line">   name: "Joe Bookreader"</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Address</span><br><span class="line">&#123;</span><br><span class="line">   pataron_id: "joe",</span><br><span class="line">   street: "123 Fake Street",</span><br><span class="line">   city: "Faketon",</span><br><span class="line">   state: "MA",</span><br><span class="line">   zip: "12345"</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>위의 Document를 Embedded 방식으로 관계를 저장하면 다음과 같습니다. <code>Person.address</code> 에 Address Document가 통째로 저장되어 있는 것을 확인 하실 수 있습니다.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// Person </span><br><span class="line">&#123;</span><br><span class="line">   _id: "joe",</span><br><span class="line">   name: "Joe Bookreader",</span><br><span class="line">   address: &#123;</span><br><span class="line">      street: "123 Fake Street",</span><br><span class="line">      city: "Faketon",</span><br><span class="line">      state: "MA",</span><br><span class="line">      zip: "12345"</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Address</span><br><span class="line">&#123;</span><br><span class="line">   pataron_id: "joe",</span><br><span class="line">   street: "123 Fake Street",</span><br><span class="line">   city: "Faketon",</span><br><span class="line">   state: "MA",</span><br><span class="line">   zip: "12345"</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h4><p>Reference 저장 방법은 pointer 개념으로 이해하면 쉬울 것 같습니다. Embedded 방식과 달리 Document를 통째로 저장하는것이 아니라 참조 할 수 있도록 ID를 저장하는 것입니다.</p>
+<p>2가지 종류의 Publisher, Book Document가 있습니다. Book Document를 유심히 확인해 봅시다. 어떤게 눈의 띄는지 보이시나요? 바로 <code>Book.publisher_id</code> 에 <code>Publisher._id</code> 의 value 가 저장되어 있습니다.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">// Publisher</span><br><span class="line">&#123;</span><br><span class="line">   _id: "oreilly",</span><br><span class="line">   name: "O'Reilly Media",</span><br><span class="line">   founded: 1980,</span><br><span class="line">   location: "CA"</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Book</span><br><span class="line">&#123;</span><br><span class="line">   _id: 123456789,</span><br><span class="line">   title: "MongoDB: The Definitive Guide",</span><br><span class="line">   author: [ "Kristina Chodorow", "Mike Dirolf" ],</span><br><span class="line">   published_date: ISODate("2010-09-24"),</span><br><span class="line">   pages: 216,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher_id: "oreilly" // &lt;- Publisher._id</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>2가지 저장 방식을 통하여 이제 어떻게 데이터를 저장하여 관계를 알 수 있는지 살펴보았습니다.</p>
+<h2 id="Document-관계-유형"><a href="#Document-관계-유형" class="headerlink" title="Document 관계 유형"></a>Document 관계 유형</h2><p>이부분은 이제 관계를 <code>얼마나</code> 맺을 것이가에 대해 살펴보겠습니다. </p>
+<h4 id="One-to-One"><a href="#One-to-One" class="headerlink" title="One-to-One"></a>One-to-One</h4><p>단순한 1:1 관계입니다. 이 관계 유형을 비유하자면, <a href="#Embedded">Embedded</a> 예시를 든 것처럼 Person이 실제 주민등록상 거주지가 Address 인 것으로 시나리오를 가정하는 관계 유형입니다.</p>
+<h4 id="One-to-Many"><a href="#One-to-Many" class="headerlink" title="One-to-Many"></a>One-to-Many</h4><p>앞서 <a href="#Reference">Reference</a>의 예제를 재활용하여 이번에는 1개의 Publisher Document 와 2개의 Book Document 가 있습니다.</p>
+<p>이 예제의 가정은 <code>Book 은 무조건 1개의 Publisher 만 갖는다</code> 라고 설정하겠습니다. </p>
+<p><a href="#Embedded">Embedded</a> 방식으로 했을 때, 데이터 구조는 어떻게 저장 될까요? <code>Book.publisher</code>의 value 에는 <code>Publisher</code> 데이터가 통째로 저장되어 있네요. </p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">// Publisher</span><br><span class="line">&#123;</span><br><span class="line">   _id: "oreilly",</span><br><span class="line">   name: "O'Reilly Media",</span><br><span class="line">   founded: 1980,</span><br><span class="line">   location: "CA"</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Book 1</span><br><span class="line">&#123;</span><br><span class="line">   _id: 123456789,</span><br><span class="line">   title: "MongoDB: The Definitive Guide",</span><br><span class="line">   author: [ "Kristina Chodorow", "Mike Dirolf" ],</span><br><span class="line">   published_date: ISODate("2010-09-24"),</span><br><span class="line">   pages: 216,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher: &#123;</span><br><span class="line">      name: "O'Reilly Media",</span><br><span class="line">      founded: 1980,</span><br><span class="line">      location: "CA"</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Book 2</span><br><span class="line">&#123;</span><br><span class="line">   _id: 234567890,</span><br><span class="line">   title: "50 Tips and Tricks for MongoDB Developer",</span><br><span class="line">   author: "Kristina Chodorow",</span><br><span class="line">   published_date: ISODate("2011-05-06"),</span><br><span class="line">   pages: 68,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher: &#123;</span><br><span class="line">      name: "O'Reilly Media",</span><br><span class="line">      founded: 1980,</span><br><span class="line">      location: "CA"</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="#Reference">Reference</a> 방식으로 했을 때, 2개의 <code>Book.publisher_id</code> 의 value 는 <code>Publisher._id</code> value 가 저장되어 있습니다.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">// Publisher</span><br><span class="line">&#123;</span><br><span class="line">   _id: "oreilly",</span><br><span class="line">   name: "O'Reilly Media",</span><br><span class="line">   founded: 1980,</span><br><span class="line">   location: "CA"</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Book 1</span><br><span class="line">&#123;</span><br><span class="line">   _id: 123456789,</span><br><span class="line">   title: "MongoDB: The Definitive Guide",</span><br><span class="line">   author: [ "Kristina Chodorow", "Mike Dirolf" ],</span><br><span class="line">   published_date: ISODate("2010-09-24"),</span><br><span class="line">   pages: 216,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher_id: "oreilly" // &lt;- Publisher._id</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Book 2</span><br><span class="line">&#123;</span><br><span class="line">   _id: 234567890,</span><br><span class="line">   title: "50 Tips and Tricks for MongoDB Developer",</span><br><span class="line">   author: "Kristina Chodorow",</span><br><span class="line">   published_date: ISODate("2011-05-06"),</span><br><span class="line">   pages: 68,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher_id: "oreilly" // &lt;- Publisher._id</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>One-to-Many 관계에서 Embedded 와 Reference 방식으로 비교하여 봅시다. 그냥 데이터가 저장된 형태만 봐서는 비교가 되질 않을 것 같습니다. 비교를 하기 위해 적절한 시나리오를 설정하겠습니다.</p>
+<h5 id="시나리오-1"><a href="#시나리오-1" class="headerlink" title="시나리오 1"></a>시나리오 1</h5><p>만약 publisher 의 ‘name’ 을 변경하거나 ‘age’ 라는 데이터를 추가해야 하는 경우에 DB를 수정해야 하는데, 어떻게 수정해야 할까요?</p>
+<p>Embedded 방식으로 저장된 데이터는 Publisher, Book 의 Document 를 모두 수정해서 데이터의 <code>일관성</code>을 유지해야 합니다.</p>
+<p>Reference 방식으로 저장된 데이터는 Publisher Document 만 수정해주면 참조하고 있는 모든 Document 는 수정할 필요가 없습니다. 자연스럽게 데이터의 <code>일관성</code>이 유지가 됩니다.</p>
+<h5 id="시나리오-2"><a href="#시나리오-2" class="headerlink" title="시나리오 2"></a>시나리오 2</h5><p>다음과 같이 Document 가 모두 관계가 저장되어 있습니다.</p>
+<ul>
+<li>Publisher Document 개수: 100개</li>
+<li>Book Document 개수: 100만개</li>
+</ul>
+<p>극단적으로 100만개의 Book Document 를 <span style="color:red">Publisher 정보를 포함</span>하여 불러오려고 할 때, 어떤 차이점을 발견 할 수 있을까요?</p>
+<p>Embedded 방식으로 저장된 데이터는 아무런 어려움 없이 Book Document 를 가져 올 때, Publisher 정보를 통째로 가져올 수 있습니다.</p>
+<p>Reference 방식으로 저장된 데이터는 <code>Publisher_id</code> 에 해당되는 Publisher 정보를 포함하도록 요청해서 가져와야 하기 때문에 한번의 요청만으로는 Publisher 정보를 가져 올 수는 없을 것입니다. 즉, 추가적인 요청을 해야만 Publisher 정보를 가져 올 수 있다는 말입니다.</p>
+<p>단편적으로 시나리오 1과 2만을 같이 고려 할 때, Embedded 또는 Reference 둘 중 어떠한 저장 방법이 효율적일지는 서비스의 기획에 따라 달라 질 것 같습니다. 퍼포먼스의 중점을 둔다면 시나리오2를 선택하여 빠른 시간내에 데이터를 불러와야 할 것이고 유지 보수 중점을 둔다면 시나리오1을 선택할 수도 있을 것입니다.</p>
+<h4 id="Many-to-Many"><a href="#Many-to-Many" class="headerlink" title="Many-to-Many"></a>Many-to-Many</h4><p>One-to-Many 관계에서 확장된 관계 유형입니다. Document 관계가 m:n 입니다. </p>
+<p>Publisher 와 Book 의 관계를 예시로 들면, One-to-Many 에서 Book의 Publisher 가 1개 이상이 될 수 있는 구조로 되는 것입니다.</p>
+<p>One-to-Many 에서 Publisher:Book = 1:n 이었지만, Many-to-Many 는 m:n 이 가능한 구조입니다. 아래 예시를 보시면 <code>Book.publisher_id</code> value 가 1개 이상의 <code>Publisher.id</code>를 참조하고 있습니다.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">// Publisher 1</span><br><span class="line">&#123;</span><br><span class="line">   _id: "oreilly",</span><br><span class="line">   name: "O'Reilly Media",</span><br><span class="line">   founded: 1980,</span><br><span class="line">   location: "CA"</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Publisher 2</span><br><span class="line">&#123;</span><br><span class="line">   _id: "devhak",</span><br><span class="line">   name: "devhak'Reilly Media",</span><br><span class="line">   founded: 1980,</span><br><span class="line">   location: "CA"</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// Book 1</span><br><span class="line">&#123;</span><br><span class="line">   _id: 123456789,</span><br><span class="line">   title: "MongoDB: The Definitive Guide",</span><br><span class="line">   author: [ "Kristina Chodorow", "Mike Dirolf" ],</span><br><span class="line">   published_date: ISODate("2010-09-24"),</span><br><span class="line">   pages: 216,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher_id: ["oreilly", "devhak"] // &lt;- Publisher._id</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Book 2</span><br><span class="line">&#123;</span><br><span class="line">   _id: 234567890,</span><br><span class="line">   title: "50 Tips and Tricks for MongoDB Developer",</span><br><span class="line">   author: "Kristina Chodorow",</span><br><span class="line">   published_date: ISODate("2011-05-06"),</span><br><span class="line">   pages: 68,</span><br><span class="line">   language: "English",</span><br><span class="line"></span><br><span class="line">   publisher_id: ["oreilly", "devhak"] // &lt;- Publisher._id</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="마치며"><a href="#마치며" class="headerlink" title="마치며"></a>마치며</h2><p>Database 의 구조는 실제 서비스를 구현하는 환경 및 개발 인력, 서비스의 규모에 따라, 많이 다를 수 있다고 생각합니다. 하지만, 지극히 개인적인 생각은 스타트업 처럼 서비스의 규모가 작은 상태에서 서비스의 초기에는 시나리서오 1의 퍼포먼스 보다는 시나리오 2의 개발의 편의성과 효율성에 초점을 두고 진행해야 개발의 속도에 조금이나마 도움이 될 것이라고 생각합니다.</p>
+<h2 id="참고"><a href="#참고" class="headerlink" title="참고"></a>참고</h2><ul>
+<li><a href="https://docs.mongodb.com/manual/applications/data-models-relationships/" target="_blank" rel="noopener">Model Relationships Between Documents</a></li>
+</ul>
+            
+
+        </div>
+    </div>
+
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-link" href="/tags/NoSQL/">NoSQL</a> <a class="tag tag--primary tag--small t-link" href="/tags/data-modeling/">data modeling</a> <a class="tag tag--primary tag--small t-link" href="/tags/data-relationships/">data relationships</a> <a class="tag tag--primary tag--small t-link" href="/tags/mongoDB/">mongoDB</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/09/30/local-build-support-for-aws-codebuild/" data-tooltip="[AWS] CodeBuild 로컬 테스트 및 디버깅" aria-label="NEXT: [AWS] CodeBuild 로컬 테스트 및 디버깅">
+                        <span class="text-small icon-mr">[AWS] CodeBuild 로컬 테스트 및 디버깅</span>
+                        <!-- <span class="hide-xs hide-sm text-small icon-mr">[AWS] CodeBuild 로컬 테스트 및 디버깅</span> -->
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <!-- <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li> -->
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/11/30/mongodb-model-relationships/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/11/30/mongodb-model-relationships/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <!-- <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top"> -->
+            
+                <!-- <i class="fa fa-list" aria-hidden="true"></i> -->
+            <!-- </a> -->
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+                <div id="disqus_thread"></div>
+<script>
+
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://devhaks.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+            
+        
+    </div>
+</article>
+
+
+                
+<footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2019 이종학. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="5">
+                    <div class="post-bar-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/09/30/local-build-support-for-aws-codebuild/" data-tooltip="[AWS] CodeBuild 로컬 테스트 및 디버깅" aria-label="NEXT: [AWS] CodeBuild 로컬 테스트 및 디버깅">
+                        <span class="hide-xs hide-sm text-small icon-mr">[AWS] CodeBuild 로컬 테스트 및 디버깅</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/11/30/mongodb-model-relationships/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/11/30/mongodb-model-relationships/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="5">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/11/30/mongodb-model-relationships/">
+                        <i class="fab fa-facebook" aria-hidden="true"></i><span>Share on Facebook</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/11/30/mongodb-model-relationships/">
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">이종학</h4>
+        
+            <!-- <div id="about-card-bio"><p>author.bio</p>
+</div> -->
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>Software developer</p>
+
+            </div>
+        
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/images/cover.jpg');"></div>
+        <!--SCRIPTS-->
+<script src="/assets/js/script-gqfkjfdb6bghizjmdhv1eect2ihkmgoyo6be4xlkou3yljsi2ml5hdwn5chn.min.js"></script>
+<!--SCRIPTS END-->
+
+    
+        <script>
+             var disqus_config = function () {
+                 this.page.url = 'https://devhaks.github.io/2019/11/30/mongodb-model-relationships/';
+                 
+                    this.page.identifier = '2019/11/30/mongodb-model-relationships/';
+                 
+             };
+            (function() {
+                var d = document, s = d.createElement('script');
+                var disqus_shortname = 'devhaks';
+                s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+    
+
+
+
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
+    </body>
+</html>

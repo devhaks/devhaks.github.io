@@ -8,8 +8,8 @@
     </url>
 
     <url>
-        <loc>https://devhaks.github.io/2019/09/30/local-build-support-for-aws-codebuild/</loc>
-        <lastmod>2019-10-21T15:28:28.516Z</lastmod>
+        <loc>https://devhaks.github.io/2019/11/30/mongodb-model-relationships/</loc>
+        <lastmod>2019-11-30T14:20:42.726Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.6</priority>
 
@@ -17,7 +17,15 @@
 
     <url>
         <loc>https://devhaks.github.io/2019/05/31/oauth2/</loc>
-        <lastmod>2019-09-29T11:30:12.782Z</lastmod>
+        <lastmod>2019-11-30T07:23:25.674Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
+        <loc>https://devhaks.github.io/2019/09/30/local-build-support-for-aws-codebuild/</loc>
+        <lastmod>2019-10-21T15:28:28.516Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.6</priority>
 
