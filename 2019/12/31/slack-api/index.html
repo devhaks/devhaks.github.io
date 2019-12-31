@@ -1,0 +1,595 @@
+
+<!DOCTYPE html>
+<html lang="en,default">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Devhaks 개발 저장소">
+    <title>slack 을 이용한 모니터링 알림 구축하기 - Devhaks 개발 저장소</title>
+    <meta name="author" content="이종학">
+    
+    
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n\n\n\n앱 생성 1\n\n앱 생성 2\n\n\n앱 생성이 끝난 후, 화면의 하단에 생성된 자신의 App을 클릭합니다.\n패키지 설치간단히 2가지 패키지만 설치 합니다.\naxios - http 전송 패키지\nlodash - 데이터 체크 여부 패키지\nslack.js 코드 파일123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102const axios = require('axios');const _ = require('lodash');class Slack &#123;  static get Colors() &#123;    return &#123;      primary: '#007bff',      info: '#17a2b8',      success: '#28a745',      warning: '#ffc107',      danger: '#dc3545'    &#125;;  &#125;  static get Channels() &#123;    return &#123;      devhaks: 'https://hooks.slack.com/services/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'    &#125;;  &#125;  /**   * @summary slack 채널에 메시지 보내는 함수   *    * @param &#123;Array&#125; attachments   * @param &#123;String&#125; url   * @param &#123;Boolean&#125; ignoreENV   *    * @example   *     \"attachments\": [        &#123;            \"fallback\": \"Required plain-text summary of the attachment.\",            \"color\": \"#36a64f\",            \"pretext\": \"Optional text that appears above the attachment block\",            \"author_name\": \"Bobby Tables\",            \"author_link\": \"http://flickr.com/bobby/\",            \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",            \"title\": \"Slack API Documentation\",            \"title_link\": \"https://api.slack.com/\",            \"text\": \"Optional text that appears within the attachment\",            \"fields\": [                &#123;                    \"title\": \"Priority\",                    \"value\": \"High\",                    \"short\": false                &#125;            ],            \"image_url\": \"http://my-website.com/path/to/image.jpg\",            \"thumb_url\": \"http://example.com/path/to/thumb.png\",            \"footer\": \"Slack API\",            \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",            \"ts\": 123456789        &#125;      ]   */  static async sendMessage(message, url, ignoreENV = false) &#123;    if (!message) &#123;      console.error('메시지 포멧이 없습니다.');      return;    &#125;    const data = &#123;      mrkdwn: true,      text: '',      attachments: []    &#125;;    if (_.isString(message)) &#123;      data.text = message;    &#125; else &#123;      if (!message.title &amp;&amp; !message.text) &#123;        console.error('메시지 내용이 없습니다.');        return;      &#125;      message.ts = Math.floor(Date.now() / 1000);      message.footer = `From 알림 서버 [$&#123;process.env.NODE_ENV&#125;]`;      data.attachments.push(message);    &#125;    if (!ignoreENV) &#123;      // dev 환경에서는 메시지 전송하지 않도록 설정      if (['production'].indexOf(process.env.NODE_ENV) === -1) &#123;        console.log(message);        return;      &#125;    &#125;    axios(&#123;      url: url || this.Channels.devhaks,      method: 'POST',      headers: &#123;        'Content-Type': 'application/json'      &#125;,      data    &#125;);  &#125;&#125;module.exports = Slack;\n\n테스트 메시지 전송하기123456789101112131415161718192021222324252627282930313233// 샘플 1Slack.sendMessage(  &#123;    color: Slack.Colors.success,    title: '테스트 메시지 전송'  &#125;,  Slack.Channels.devhaks);// 샘플 2Slack.sendMessage(  &#123;    color: Slack.Colors.danger,    title: '[CSV] 네트워크 그래프 생성 실패',    text: `$&#123;error.message&#125;`,    fields: [      &#123;        title: 'brsData.company',        value: brsData.company.id      &#125;,      &#123;        title: 'brsData.targetCompany',        value: brsData.targetCompany.id      &#125;,      &#123;        title: 'brsData.category',        value: brsData.category.id      &#125;    ]  &#125;,  Slack.Channels.devhaks);\n\n참고\nmessage - https://api.slack.com/docs/messages\n\nmessage builder - https://api.slack.com/docs/messages/builder\n\n","dateCreated":"2019-12-31T23:22:11+09:00","dateModified":"2019-12-31T23:55:50+09:00","datePublished":"2019-12-31T23:22:11+09:00","description":"이번 포스팅은 Slack 을 이용하여 서비스 운영시, 모니터링을 할 수 있는 방법에 대해 살펴 보겠습니다.","headline":"slack 을 이용한 모니터링 알림 구축하기","image":["thumbnail.png","cover.jpg"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2019/12/31/slack-api/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2019/12/31/slack-api/","keywords":"slack, monitoring","thumbnailUrl":"thumbnail.png"}</script>
+    
+    
+    
+        
+    
+
+    
+        <meta property="og:image" content="https://devhaks.github.io/2019/12/31/slack-api/thumbnail.png"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/12/31/slack-api/thumbnail.png" />
+    
+    
+    
+        <meta property="og:image" content="https://devhaks.github.io/2019/12/31/slack-api/cover.jpg"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2019/12/31/slack-api/cover.jpg" />
+    
+    
+    
+        <meta property="og:image" content="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=640"/>
+    
+    
+    
+
+    <meta name="description" content="이번 포스팅은 Slack 을 이용하여 서비스 운영시, 모니터링을 할 수 있는 방법에 대해 살펴 보겠습니다.">
+<meta name="keywords" content="slack,monitoring">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="slack 을 이용한 모니터링 알림 구축하기">
+<meta property="og:url" content="https://devhaks.github.io/2019/12/31/slack-api/index.html">
+<meta property="og:site_name" content="Devhaks 개발 저장소">
+<meta property="og:description" content="이번 포스팅은 Slack 을 이용하여 서비스 운영시, 모니터링을 할 수 있는 방법에 대해 살펴 보겠습니다.">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="https://devhaks.github.io/2019/12/31/slack-api/create_app_1.png">
+<meta property="og:image" content="https://devhaks.github.io/2019/12/31/slack-api/create_app_2.png">
+<meta property="og:updated_time" content="2019-12-31T14:55:50.630Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="slack 을 이용한 모니터링 알림 구축하기">
+<meta name="twitter:description" content="이번 포스팅은 Slack 을 이용하여 서비스 운영시, 모니터링을 할 수 있는 방법에 대해 살펴 보겠습니다.">
+<meta name="twitter:image" content="https://devhaks.github.io/2019/12/31/slack-api/create_app_1.png">
+
+
+    <!--STYLES-->
+    <link rel="stylesheet" href="/assets/css/style-dig2yh02rpgcdxsbsfha8ujj65grwfvm3xbp1gpa6w8uj8k150ymhv97ed5p.min.css">
+    <!--STYLES END-->
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-135461398-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-135461398-1');
+    </script>
+
+
+    
+</head>
+
+    <body>
+        
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+    
+
+<header id="header" data-behavior="5">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a class="header-title-link" href="/ ">Devhaks 개발 저장소</a>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
+    
+        
+            <a  class="header-right-picture "
+                href="/me">
+        
+        
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>
+            <!-- Define author's picture -->
+
+
+    
+
+<nav id="sidebar" data-behavior="5">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a href="/#about">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">이종학</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>author.bio</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/ "
+                            
+                            title="Home"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-categories"
+                            
+                            title="Categories"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-tags"
+                            
+                            title="Tags"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-archives"
+                            
+                            title="Archives"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link open-algolia-search"
+                             href="#search"
+                            
+                            title="Search"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Search</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/me"
+                            
+                            title="About"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                    
+                        <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">GitHub</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full"
+             style="background-image:url('/2019/12/31/slack-api/cover.jpg');"
+             data-behavior="5">
+            
+                <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            slack 을 이용한 모니터링 알림 구축하기
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2019-12-31T23:22:11+09:00">
+	
+		    Dec 31, 2019
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/api/">api</a>
+
+
+    
+</div>
+
+    
+</div>
+
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <!-- excerpt -->
+
+
+
+<div class="figure center" style="width:80%;"><a class="fancybox" href="create_app_1.png" title="앱 생성 1" data-caption="앱 생성 1" data-fancybox="default"><img class="fig-img" src="create_app_1.png" style="width:80%;" alt="앱 생성 1"></a><span class="caption">앱 생성 1</span></div><div style="clear:both;"></div>
+
+<div class="figure center" style="width:80%;"><a class="fancybox" href="create_app_2.png" title="앱 생성 2" data-caption="앱 생성 2" data-fancybox="default"><img class="fig-img" src="create_app_2.png" style="width:80%;" alt="앱 생성 2"></a><span class="caption">앱 생성 2</span></div><div style="clear:both;"></div>
+
+
+<p>앱 생성이 끝난 후, 화면의 하단에 생성된 자신의 App을 클릭합니다.</p>
+<h2 id="패키지-설치"><a href="#패키지-설치" class="headerlink" title="패키지 설치"></a>패키지 설치</h2><p>간단히 2가지 패키지만 설치 합니다.</p>
+<p>axios - http 전송 패키지</p>
+<p>lodash - 데이터 체크 여부 패키지</p>
+<h2 id="slack-js-코드-파일"><a href="#slack-js-코드-파일" class="headerlink" title="slack.js 코드 파일"></a>slack.js 코드 파일</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">const</span> axios = <span class="built_in">require</span>(<span class="string">'axios'</span>);</span><br><span class="line"><span class="keyword">const</span> _ = <span class="built_in">require</span>(<span class="string">'lodash'</span>);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Slack</span> </span>&#123;</span><br><span class="line">  <span class="keyword">static</span> <span class="keyword">get</span> Colors() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      primary: <span class="string">'#007bff'</span>,</span><br><span class="line">      info: <span class="string">'#17a2b8'</span>,</span><br><span class="line">      success: <span class="string">'#28a745'</span>,</span><br><span class="line">      warning: <span class="string">'#ffc107'</span>,</span><br><span class="line">      danger: <span class="string">'#dc3545'</span></span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">static</span> <span class="keyword">get</span> Channels() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      devhaks: <span class="string">'https://hooks.slack.com/services/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'</span></span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * @summary slack 채널에 메시지 보내는 함수</span></span><br><span class="line"><span class="comment">   * </span></span><br><span class="line"><span class="comment">   * @param &#123;Array&#125; attachments</span></span><br><span class="line"><span class="comment">   * @param &#123;String&#125; url</span></span><br><span class="line"><span class="comment">   * @param &#123;Boolean&#125; ignoreENV</span></span><br><span class="line"><span class="comment">   * </span></span><br><span class="line"><span class="comment">   * @example</span></span><br><span class="line"><span class="comment">   * </span></span><br><span class="line"><span class="comment">    "attachments": [</span></span><br><span class="line"><span class="comment">        &#123;</span></span><br><span class="line"><span class="comment">            "fallback": "Required plain-text summary of the attachment.",</span></span><br><span class="line"><span class="comment">            "color": "#36a64f",</span></span><br><span class="line"><span class="comment">            "pretext": "Optional text that appears above the attachment block",</span></span><br><span class="line"><span class="comment">            "author_name": "Bobby Tables",</span></span><br><span class="line"><span class="comment">            "author_link": "http://flickr.com/bobby/",</span></span><br><span class="line"><span class="comment">            "author_icon": "http://flickr.com/icons/bobby.jpg",</span></span><br><span class="line"><span class="comment">            "title": "Slack API Documentation",</span></span><br><span class="line"><span class="comment">            "title_link": "https://api.slack.com/",</span></span><br><span class="line"><span class="comment">            "text": "Optional text that appears within the attachment",</span></span><br><span class="line"><span class="comment">            "fields": [</span></span><br><span class="line"><span class="comment">                &#123;</span></span><br><span class="line"><span class="comment">                    "title": "Priority",</span></span><br><span class="line"><span class="comment">                    "value": "High",</span></span><br><span class="line"><span class="comment">                    "short": false</span></span><br><span class="line"><span class="comment">                &#125;</span></span><br><span class="line"><span class="comment">            ],</span></span><br><span class="line"><span class="comment">            "image_url": "http://my-website.com/path/to/image.jpg",</span></span><br><span class="line"><span class="comment">            "thumb_url": "http://example.com/path/to/thumb.png",</span></span><br><span class="line"><span class="comment">            "footer": "Slack API",</span></span><br><span class="line"><span class="comment">            "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",</span></span><br><span class="line"><span class="comment">            "ts": 123456789</span></span><br><span class="line"><span class="comment">        &#125;</span></span><br><span class="line"><span class="comment">      ]</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="keyword">static</span> <span class="keyword">async</span> sendMessage(message, url, ignoreENV = <span class="literal">false</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (!message) &#123;</span><br><span class="line">      <span class="built_in">console</span>.error(<span class="string">'메시지 포멧이 없습니다.'</span>);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> data = &#123;</span><br><span class="line">      mrkdwn: <span class="literal">true</span>,</span><br><span class="line">      text: <span class="string">''</span>,</span><br><span class="line">      attachments: []</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (_.isString(message)) &#123;</span><br><span class="line">      data.text = message;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (!message.title &amp;&amp; !message.text) &#123;</span><br><span class="line">        <span class="built_in">console</span>.error(<span class="string">'메시지 내용이 없습니다.'</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      message.ts = <span class="built_in">Math</span>.floor(<span class="built_in">Date</span>.now() / <span class="number">1000</span>);</span><br><span class="line">      message.footer = <span class="string">`From 알림 서버 [<span class="subst">$&#123;process.env.NODE_ENV&#125;</span>]`</span>;</span><br><span class="line">      data.attachments.push(message);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!ignoreENV) &#123;</span><br><span class="line">      <span class="comment">// dev 환경에서는 메시지 전송하지 않도록 설정</span></span><br><span class="line">      <span class="keyword">if</span> ([<span class="string">'production'</span>].indexOf(process.env.NODE_ENV) === <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(message);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    axios(&#123;</span><br><span class="line">      url: url || <span class="keyword">this</span>.Channels.devhaks,</span><br><span class="line">      method: <span class="string">'POST'</span>,</span><br><span class="line">      headers: &#123;</span><br><span class="line">        <span class="string">'Content-Type'</span>: <span class="string">'application/json'</span></span><br><span class="line">      &#125;,</span><br><span class="line">      data</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = Slack;</span><br></pre></td></tr></table></figure>
+
+<h2 id="테스트-메시지-전송하기"><a href="#테스트-메시지-전송하기" class="headerlink" title="테스트 메시지 전송하기"></a>테스트 메시지 전송하기</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">// 샘플 1</span></span><br><span class="line">Slack.sendMessage(</span><br><span class="line">  &#123;</span><br><span class="line">    color: Slack.Colors.success,</span><br><span class="line">    title: <span class="string">'테스트 메시지 전송'</span></span><br><span class="line">  &#125;,</span><br><span class="line">  Slack.Channels.devhaks</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 샘플 2</span></span><br><span class="line">Slack.sendMessage(</span><br><span class="line">  &#123;</span><br><span class="line">    color: Slack.Colors.danger,</span><br><span class="line">    title: <span class="string">'[CSV] 네트워크 그래프 생성 실패'</span>,</span><br><span class="line">    text: <span class="string">`<span class="subst">$&#123;error.message&#125;</span>`</span>,</span><br><span class="line">    fields: [</span><br><span class="line">      &#123;</span><br><span class="line">        title: <span class="string">'brsData.company'</span>,</span><br><span class="line">        value: brsData.company.id</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        title: <span class="string">'brsData.targetCompany'</span>,</span><br><span class="line">        value: brsData.targetCompany.id</span><br><span class="line">      &#125;,</span><br><span class="line">      &#123;</span><br><span class="line">        title: <span class="string">'brsData.category'</span>,</span><br><span class="line">        value: brsData.category.id</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;,</span><br><span class="line">  Slack.Channels.devhaks</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+
+<h2 id="참고"><a href="#참고" class="headerlink" title="참고"></a>참고</h2><ul>
+<li><p>message - <a href="https://api.slack.com/docs/messages" target="_blank" rel="noopener">https://api.slack.com/docs/messages</a></p>
+</li>
+<li><p>message builder - <a href="https://api.slack.com/docs/messages/builder" target="_blank" rel="noopener">https://api.slack.com/docs/messages/builder</a></p>
+</li>
+</ul>
+            
+
+        </div>
+    </div>
+
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-link" href="/tags/monitoring/">monitoring</a> <a class="tag tag--primary tag--small t-link" href="/tags/slack/">slack</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/11/30/mongodb-model-relationships/" data-tooltip="MongoDB 데이터 관계 모델링" aria-label="NEXT: MongoDB 데이터 관계 모델링">
+                        <span class="text-small icon-mr">MongoDB 데이터 관계 모델링</span>
+                        <!-- <span class="hide-xs hide-sm text-small icon-mr">MongoDB 데이터 관계 모델링</span> -->
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <!-- <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li> -->
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/12/31/slack-api/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/12/31/slack-api/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <!-- <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top"> -->
+            
+                <!-- <i class="fa fa-list" aria-hidden="true"></i> -->
+            <!-- </a> -->
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+                <div id="disqus_thread"></div>
+<script>
+
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://devhaks.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+            
+        
+    </div>
+</article>
+
+
+                
+<footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2019 이종학. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="5">
+                    <div class="post-bar-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2019/11/30/mongodb-model-relationships/" data-tooltip="MongoDB 데이터 관계 모델링" aria-label="NEXT: MongoDB 데이터 관계 모델링">
+                        <span class="hide-xs hide-sm text-small icon-mr">MongoDB 데이터 관계 모델링</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/12/31/slack-api/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/12/31/slack-api/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="5">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2019/12/31/slack-api/">
+                        <i class="fab fa-facebook" aria-hidden="true"></i><span>Share on Facebook</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2019/12/31/slack-api/">
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">이종학</h4>
+        
+            <!-- <div id="about-card-bio"><p>author.bio</p>
+</div> -->
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>Software developer</p>
+
+            </div>
+        
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/images/cover.jpg');"></div>
+        <!--SCRIPTS-->
+<script src="/assets/js/script-gqfkjfdb6bghizjmdhv1eect2ihkmgoyo6be4xlkou3yljsi2ml5hdwn5chn.min.js"></script>
+<!--SCRIPTS END-->
+
+    
+        <script>
+             var disqus_config = function () {
+                 this.page.url = 'https://devhaks.github.io/2019/12/31/slack-api/';
+                 
+                    this.page.identifier = '2019/12/31/slack-api/';
+                 
+             };
+            (function() {
+                var d = document, s = d.createElement('script');
+                var disqus_shortname = 'devhaks';
+                s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+    
+
+
+
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
+    </body>
+</html>

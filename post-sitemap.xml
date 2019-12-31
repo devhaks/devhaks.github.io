@@ -8,8 +8,16 @@
     </url>
 
     <url>
+        <loc>https://devhaks.github.io/2019/12/31/slack-api/</loc>
+        <lastmod>2019-12-31T14:55:50.630Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
         <loc>https://devhaks.github.io/2019/11/30/mongodb-model-relationships/</loc>
-        <lastmod>2019-12-01T08:24:52.682Z</lastmod>
+        <lastmod>2019-12-01T08:31:55.956Z</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.6</priority>
 
