@@ -8,6 +8,30 @@
     </url>
 
     <url>
+        <loc>https://devhaks.github.io/2020/01/31/mongodb-query-tuning/</loc>
+        <lastmod>2020-01-31T14:58:35.318Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
+        <loc>https://devhaks.github.io/2020/01/09/mongodb-query-tuning/singleIndex/</loc>
+        <lastmod>2020-01-31T14:50:13.300Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
+        <loc>https://devhaks.github.io/2020/01/09/mongodb-query-tuning/compoundIndex/</loc>
+        <lastmod>2020-01-30T15:35:47.790Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
         <loc>https://devhaks.github.io/2019/12/31/slack-api/</loc>
         <lastmod>2020-01-01T12:01:02.746Z</lastmod>
         <changefreq>weekly</changefreq>

@@ -1,0 +1,632 @@
+
+<!DOCTYPE html>
+<html lang="en,default">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Devhaks 개발 저장소">
+    <title>MongoDB Query 튜닝 - Devhaks 개발 저장소</title>
+    <meta name="author" content="이종학">
+    
+    
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n\n\n목차\n배경\n\nIndex\n\n\n\n마치며\n\n참고\n\n\n배경자사 서비스 중에 공공데이터 사이트에서 국민연금 open api 를 사용하고 있었습니다.\n그러던 중 api측에서 과도한 api 요청으로 부하가 발생하여 국민연금의 2015~2018년 데이터를 제공하지 않겠다고 공지했습니다. \n저희는 기업을 대상으로 서비스를 운영 중이었는데, 더 이상 데이터를 제공받지 못하게 되었습니다.그래서 국민연금 파일 데이터 제공받아 파일에 있는 국민연금 정보를 DB에 저장하는 작업을 하게 되었습니다.\n(파일 데이터로 전환한 또 다른 이유는 api 서버에 여러 문제가 많습니다. 응답 속도도 느릴 뿐더러 서버에서 block 을 피하기 위해 프로그래밍한 것도 너무 짜증이 났습니다…)\n2015~2020년 기간의 파일 데이터를 DB 에 저장 작업을 마치고 나서 최종 데이터의 용량, document 수 등을 확인했습니다. DB collection 용량은 약 3GB, Document 수는 90만개가 넘었습니다. \n저는 방대한 데이터를 사용한 적이 없어서 어떻게 데이터를 다룰지 고민 했습니다. 문뜩 생각난 indexing 이란 것을 들어만 봤었는데, 어떻게 사용하는지에 대해서는 전혀 알지 못했기 이참에 공부하여 정리 해봤습니다.\nIndexIndex 라는 단어는 익숙 합니다. 목차라고 하며 책의 앞쪽 부분에 원하는 내용을 쉽고 빠르게 찾기 위해  나열된 소주제와 페이지 수를 정리해 놓은 것입니다. \n만약 목차가 없는 사전에서 ‘정보’라는 단어를 찾는다면 어떻게 단어를 찾아야 할까요? \n생각만 해도 끔찍한데 그래도 생각해봅시다… 개발자들은 끔찍한걸 경험해봐야 더 효율적으로 생각 하게됩니다.  \n책의 ‘ㄱ’ 부터 시작해서 ‘ㅈ’을 찾은 다음에는 ‘ㅏ’ 부터 시작해서 ‘ㅓ’를 계속해서 찾아가야 하는 엄청난 불편함이 생깁니다.\n그래서 DB에도 이러한 개념이 있는 것이겠죠. 감사한 일입니다…\nIndex 유형indexing 하는 방법은 여러 가지가 있습니다. 그 중에서 제가 적용했던 방법에 대해서만 살펴 보겠습니다.\n실습을 하기 위해 약 40MB 용량이면서 73만개의 document 가진 샘플 DB를 준비했습니다.\n샘플 DB 준비실습 전에 mongoDB 를 설치시기 바랍니다. 위의 샘플을 다운로드하고 압축을 풀어줍니다. 그리고 Command 을 열어서 아래와 같이 진행합니다.\n123456789101112// DB 복구하기$ mongorestore sampleDB // 기본 설정 host=localhost, port=27017 2020-01-31T23:31:31.770+0900\tpreparing collections to restore from2020-01-31T23:31:31.771+0900\treading metadata for sample.NationalPension from sampleDB/sample/NationalPension.metadata.json2020-01-31T23:31:31.838+0900\trestoring sample.NationalPension from sampleDB/sample/NationalPension.bson2020-01-31T23:31:34.768+0900\t[##########..............]  sample.NationalPension  70.8MB/155MB  (45.7%)2020-01-31T23:31:37.768+0900\t[######################..]  sample.NationalPension  146MB/155MB  (94.0%)2020-01-31T23:31:38.141+0900\t[########################]  sample.NationalPension  155MB/155MB  (100.0%)2020-01-31T23:31:38.142+0900\trestoring indexes for collection sample.NationalPension from metadata2020-01-31T23:31:40.756+0900\tfinished restoring sample.NationalPension (731815 documents)2020-01-31T23:31:40.756+0900\tdone\n\nsample 라는 DB 에 NationalPension collection 이 생성되었습니다.\n참고로 DB 를 미리 생성하지 않아도 mongorestore 명령어가 자동으로 DB 를 생성합니다.\n데이터가 제대로 복구 되었는지 확인합니다.\n12345678910111213141516171819202122232425$ mongo // mongo 콘솔로 접속하기&gt; use sample  // DB 선택switched to db sample// collection document 개수 확인&gt; db.NationalPension.count()731815// collection 상세 정보 보기 , 1024*1024 는 용량 단위 MB 로 환산&gt; db.NationalPension.stats(1024*1024)... 출력 생략// collection 에 적용된 모든 index 확인&gt; db.NationalPension.getIndexes()[  &#123;    \"v\" : 2,    \"key\" : &#123;      \"_id\" : 1    &#125;,    \"name\" : \"_id_\",    \"ns\" : \"sample.NationalPension\"  &#125;]\n\nsingle field index1개의 field 만 indexing 합니다. 적용 전, 미리 임의의 쿼리로 executionTimeMillis 측정해 봅시다.\n적용 전, 쿼리 실행 결과 상세 정보\n\ntotalDocsExamined: 731815\nexecutionTimeMillis: 325ms\n\n123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051&gt; db.NationalPension.find(&#123; bzowrRgstNo: \"105879\" &#125;).explain('executionStats')&#123;\t\"queryPlanner\" : &#123;\t\t\"plannerVersion\" : 1,\t\t\"namespace\" : \"sample.NationalPension\",\t\t\"indexFilterSet\" : false,\t\t\"parsedQuery\" : &#123;\t\t\t\"bzowrRgstNo\" : &#123;\t\t\t\t\"$eq\" : \"105879\"\t\t\t&#125;\t\t&#125;,\t\t\"winningPlan\" : &#123;\t\t\t\"stage\" : \"COLLSCAN\",\t\t\t\"filter\" : &#123;\t\t\t\t\"bzowrRgstNo\" : &#123;\t\t\t\t\t\"$eq\" : \"105879\"\t\t\t\t&#125;\t\t\t&#125;,\t\t\t\"direction\" : \"forward\"\t\t&#125;,\t\t\"rejectedPlans\" : [ ]\t&#125;,\t\"executionStats\" : &#123;\t\t\"executionSuccess\" : true,\t\t\"nReturned\" : 290,\t\t\"executionTimeMillis\" : 325,\t\t\"totalKeysExamined\" : 0,\t\t\"totalDocsExamined\" : 731815,\t\t\"executionStages\" : &#123; ... &#125;,\t\t\t\"nReturned\" : 290,\t\t\t\"executionTimeMillisEstimate\" : 278,\t\t\t\"works\" : 731817,\t\t\t\"advanced\" : 290,\t\t\t\"needTime\" : 731526,\t\t\t\"needYield\" : 0,\t\t\t\"saveState\" : 5727,\t\t\t\"restoreState\" : 5727,\t\t\t\"isEOF\" : 1,\t\t\t\"invalidates\" : 0,\t\t\t\"direction\" : \"forward\",\t\t\t\"docsExamined\" : 731815\t\t&#125;\t&#125;,\t\"serverInfo\" : &#123;\t\t\"host\" : \"zillinksui-MacBook-Pro.local\",\t\t\"port\" : 27017,\t\t\"version\" : \"4.0.5\",\t\t\"gitVersion\" : \"3739429dd92b92d1b0ab120911a23d50bf03c412\"\t&#125;,\t\"ok\" : 1&#125;\n\nIndexing 적용하기\n12345678// 1은 내림차순, -1 오름차순&gt; db.NationalPension.createIndex(&#123; bzowrRgstNo: 1 &#125;);&#123;\t\"createdCollectionAutomatically\" : false,\t\"numIndexesBefore\" : 1,\t\"numIndexesAfter\" : 2,\t\"ok\" : 1&#125;\n\n적용 후, 쿼리 실행 결과 상세 정보\n\ntotalDocsExamined: 731815\nexecutionTimeMillis: 1ms\n\n123456789101112131415161718192021222324252627282930313233343536373839404142434445464748&gt; db.NationalPension.find(&#123; bzowrRgstNo: \"105879\" &#125;).explain('executionStats')&#123;\t\"queryPlanner\" : &#123;\t\t\"plannerVersion\" : 1,\t\t\"namespace\" : \"sample.NationalPension\",\t\t\"indexFilterSet\" : false,\t\t\"parsedQuery\" : &#123;\t\t\t\"bzowrRgstNo\" : &#123;\t\t\t\t\"$eq\" : \"105879\"\t\t\t&#125;\t\t&#125;,\t\t\"winningPlan\" : &#123;\t\t\t\"stage\" : \"FETCH\",\t\t\t\"inputStage\" : &#123;\t\t\t\t\"stage\" : \"IXSCAN\",\t\t\t\t\"keyPattern\" : &#123;\t\t\t\t\t\"bzowrRgstNo\" : 1\t\t\t\t&#125;,\t\t\t\t\"indexName\" : \"bzowrRgstNo_1\",\t\t\t\t\"isMultiKey\" : false,\t\t\t\t\"multiKeyPaths\" : &#123;\t\t\t\t\t\"bzowrRgstNo\" : [ ]\t\t\t\t&#125;,\t\t\t\t\"isUnique\" : false,\t\t\t\t\"isSparse\" : false,\t\t\t\t\"isPartial\" : false,\t\t\t\t\"indexVersion\" : 2,\t\t\t\t\"direction\" : \"forward\",\t\t\t\t\"indexBounds\" : &#123;\t\t\t\t\t\"bzowrRgstNo\" : [\t\t\t\t\t\t\"[\\\"105879\\\", \\\"105879\\\"]\"\t\t\t\t\t]\t\t\t\t&#125;\t\t\t&#125;\t\t&#125;,\t\t\"rejectedPlans\" : [ ]\t&#125;,\t\"executionStats\" : &#123;\t\t\"executionSuccess\" : true,\t\t\"nReturned\" : 290,\t\t\"executionTimeMillis\" : 1,\t\t\"totalKeysExamined\" : 290,\t\t\"totalDocsExamined\" : 290,\t\t\"executionStages\" : &#123; ... &#125;\t&#125;,\t\"serverInfo\" : &#123; ... &#125;,\t\"ok\" : 1&#125;\n\ncompound indexes2개 이상의 field 를 같이 indexing 합니다.\n참고Indexing Strategies - Selectivity\n\n\n\n\n\n\n","dateCreated":"2020-01-31T23:59:00+09:00","dateModified":"2020-01-31T23:58:35+09:00","datePublished":"2020-01-31T23:59:00+09:00","description":"이번 포스팅은 mongoDB 에서 수많은 데이터를 빠르게 검색하기 위한 indexing 에 대해 살펴 보겠습니다.","headline":"MongoDB Query 튜닝","image":["thumbnail.png","cover.jpg"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2020/01/31/mongodb-query-tuning/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2020/01/31/mongodb-query-tuning/","keywords":"mongoDB, query, NoSQL","thumbnailUrl":"thumbnail.png"}</script>
+    
+    
+    
+        
+    
+
+    
+        <meta property="og:image" content="https://devhaks.github.io/2020/01/31/mongodb-query-tuning/thumbnail.png"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2020/01/31/mongodb-query-tuning/thumbnail.png" />
+    
+    
+    
+        <meta property="og:image" content="https://devhaks.github.io/2020/01/31/mongodb-query-tuning/cover.jpg"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2020/01/31/mongodb-query-tuning/cover.jpg" />
+    
+    
+    
+        <meta property="og:image" content="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=640"/>
+    
+    
+    
+
+    <meta name="description" content="데이터를 검색 속도를 높이기 위한 indexing 하는 방법">
+<meta name="keywords" content="mongoDB,query,NoSQL">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="MongoDB Query 튜닝">
+<meta property="og:url" content="https://devhaks.github.io/2020/01/31/mongodb-query-tuning/index.html">
+<meta property="og:site_name" content="Devhaks 개발 저장소">
+<meta property="og:description" content="데이터를 검색 속도를 높이기 위한 indexing 하는 방법">
+<meta property="og:locale" content="en">
+<meta property="og:updated_time" content="2020-01-31T14:58:35.318Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MongoDB Query 튜닝">
+<meta name="twitter:description" content="데이터를 검색 속도를 높이기 위한 indexing 하는 방법">
+
+
+    <!--STYLES-->
+    <link rel="stylesheet" href="/assets/css/style-dig2yh02rpgcdxsbsfha8ujj65grwfvm3xbp1gpa6w8uj8k150ymhv97ed5p.min.css">
+    <!--STYLES END-->
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-135461398-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-135461398-1');
+    </script>
+
+
+    
+</head>
+
+    <body>
+        
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+    
+
+<header id="header" data-behavior="5">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a class="header-title-link" href="/ ">Devhaks 개발 저장소</a>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
+    
+        
+            <a  class="header-right-picture "
+                href="/me">
+        
+        
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>
+            <!-- Define author's picture -->
+
+
+    
+
+<nav id="sidebar" data-behavior="5">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a href="/#about">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">이종학</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>author.bio</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/ "
+                            
+                            title="Home"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-categories"
+                            
+                            title="Categories"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-tags"
+                            
+                            title="Tags"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-archives"
+                            
+                            title="Archives"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link open-algolia-search"
+                             href="#search"
+                            
+                            title="Search"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Search</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/me"
+                            
+                            title="About"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                    
+                        <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">GitHub</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full"
+             style="background-image:url('/2020/01/31/mongodb-query-tuning/cover.jpg');"
+             data-behavior="5">
+            
+                <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            MongoDB Query 튜닝
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2020-01-31T23:59:00+09:00">
+	
+		    Jan 31, 2020
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/Database/">Database</a>
+
+
+    
+</div>
+
+    
+</div>
+
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <!-- excerpt -->
+
+
+<h2 id="목차"><a href="#목차" class="headerlink" title="목차"></a>목차</h2><ul>
+<li><p><a href="#배경">배경</a></p>
+</li>
+<li><p><a href="#Index">Index</a></p>
+</li>
+</ul>
+<ul>
+<li><p><a href="#마치며">마치며</a></p>
+</li>
+<li><p><a href="#참고">참고</a></p>
+</li>
+</ul>
+<h2 id="배경"><a href="#배경" class="headerlink" title="배경"></a>배경</h2><p>자사 서비스 중에 공공데이터 사이트에서 <b>국민연금 open api</b> 를 사용하고 있었습니다.</p>
+<p>그러던 중 api측에서 과도한 api 요청으로 부하가 발생하여 국민연금의 2015~2018년 데이터를 제공하지 않겠다고 공지했습니다. </p>
+<p>저희는 기업을 대상으로 서비스를 운영 중이었는데, 더 이상 데이터를 제공받지 못하게 되었습니다.<br>그래서 국민연금 파일 데이터 제공받아 파일에 있는 국민연금 정보를 DB에 저장하는 작업을 하게 되었습니다.</p>
+<p>(파일 데이터로 전환한 또 다른 이유는 api 서버에 여러 문제가 많습니다. 응답 속도도 느릴 뿐더러 서버에서 block 을 피하기 위해 프로그래밍한 것도 너무 짜증이 났습니다…)</p>
+<p>2015~2020년 기간의 파일 데이터를 DB 에 저장 작업을 마치고 나서 최종 데이터의 용량, document 수 등을 확인했습니다. DB collection 용량은 약 3GB, Document 수는 90만개가 넘었습니다. </p>
+<p>저는 방대한 데이터를 사용한 적이 없어서 어떻게 데이터를 다룰지 고민 했습니다. 문뜩 생각난 indexing 이란 것을 들어만 봤었는데, 어떻게 사용하는지에 대해서는 전혀 알지 못했기 이참에 공부하여 정리 해봤습니다.</p>
+<h2 id="Index"><a href="#Index" class="headerlink" title="Index"></a>Index</h2><p>Index 라는 단어는 익숙 합니다. 목차라고 하며 책의 앞쪽 부분에 원하는 내용을 쉽고 빠르게 찾기 위해  나열된 소주제와 페이지 수를 정리해 놓은 것입니다. </p>
+<p>만약 목차가 없는 사전에서 ‘정보’라는 단어를 찾는다면 어떻게 단어를 찾아야 할까요? </p>
+<p>생각만 해도 끔찍한데 그래도 생각해봅시다… 개발자들은 끔찍한걸 경험해봐야 더 효율적으로 생각 하게됩니다.  </p>
+<p>책의 ‘ㄱ’ 부터 시작해서 ‘ㅈ’을 찾은 다음에는 ‘ㅏ’ 부터 시작해서 ‘ㅓ’를 계속해서 찾아가야 하는 엄청난 불편함이 생깁니다.</p>
+<p>그래서 DB에도 이러한 개념이 있는 것이겠죠. 감사한 일입니다…</p>
+<h2 id="Index-유형"><a href="#Index-유형" class="headerlink" title="Index 유형"></a>Index 유형</h2><p>indexing 하는 방법은 여러 가지가 있습니다. 그 중에서 제가 적용했던 방법에 대해서만 살펴 보겠습니다.</p>
+<p>실습을 하기 위해 약 40MB 용량이면서 73만개의 document 가진 <a href="./sampleDB.zip">샘플 DB</a>를 준비했습니다.</p>
+<h4 id="샘플-DB-준비"><a href="#샘플-DB-준비" class="headerlink" title="샘플 DB 준비"></a>샘플 DB 준비</h4><p>실습 전에 mongoDB 를 설치시기 바랍니다. 위의 샘플을 다운로드하고 압축을 풀어줍니다. 그리고 Command 을 열어서 아래와 같이 진행합니다.</p>
+<figure class="highlight clean"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// DB 복구하기</span></span><br><span class="line">$ mongorestore sampleDB <span class="comment">// 기본 설정 host=localhost, port=27017 </span></span><br><span class="line"></span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">31.770</span>+<span class="number">0900</span>	preparing collections to restore <span class="keyword">from</span></span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">31.771</span>+<span class="number">0900</span>	reading metadata for sample.NationalPension <span class="keyword">from</span> sampleDB/sample/NationalPension.metadata.json</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">31.838</span>+<span class="number">0900</span>	restoring sample.NationalPension <span class="keyword">from</span> sampleDB/sample/NationalPension.bson</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">34.768</span>+<span class="number">0900</span>	[##########..............]  sample.NationalPension  <span class="number">70.8</span>MB/<span class="number">155</span>MB  (<span class="number">45.7</span>%)</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">37.768</span>+<span class="number">0900</span>	[######################..]  sample.NationalPension  <span class="number">146</span>MB/<span class="number">155</span>MB  (<span class="number">94.0</span>%)</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">38.141</span>+<span class="number">0900</span>	[########################]  sample.NationalPension  <span class="number">155</span>MB/<span class="number">155</span>MB  (<span class="number">100.0</span>%)</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">38.142</span>+<span class="number">0900</span>	restoring indexes for collection sample.NationalPension <span class="keyword">from</span> metadata</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">40.756</span>+<span class="number">0900</span>	finished restoring sample.NationalPension (<span class="number">731815</span> documents)</span><br><span class="line"><span class="number">2020</span><span class="number">-01</span><span class="number">-31</span>T23:<span class="number">31</span>:<span class="number">40.756</span>+<span class="number">0900</span>	done</span><br></pre></td></tr></table></figure>
+
+<p><code>sample</code> 라는 DB 에 <code>NationalPension</code> collection 이 생성되었습니다.</p>
+<p>참고로 DB 를 미리 생성하지 않아도 <code>mongorestore</code> 명령어가 자동으로 DB 를 생성합니다.</p>
+<p>데이터가 제대로 복구 되었는지 확인합니다.</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">$ mongo <span class="comment">// mongo 콘솔로 접속하기</span></span><br><span class="line"></span><br><span class="line">&gt; use sample  <span class="comment">// DB 선택</span></span><br><span class="line">switched to db sample</span><br><span class="line"></span><br><span class="line"><span class="comment">// collection document 개수 확인</span></span><br><span class="line">&gt; db<span class="selector-class">.NationalPension</span><span class="selector-class">.count</span>()</span><br><span class="line"><span class="number">731815</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// collection 상세 정보 보기 , 1024*1024 는 용량 단위 MB 로 환산</span></span><br><span class="line">&gt; db<span class="selector-class">.NationalPension</span><span class="selector-class">.stats</span>(<span class="number">1024</span>*<span class="number">1024</span>)</span><br><span class="line">... 출력 생략</span><br><span class="line"></span><br><span class="line"><span class="comment">// collection 에 적용된 모든 index 확인</span></span><br><span class="line">&gt; db<span class="selector-class">.NationalPension</span><span class="selector-class">.getIndexes</span>()</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">"v"</span> : <span class="number">2</span>,</span><br><span class="line">    <span class="string">"key"</span> : &#123;</span><br><span class="line">      <span class="string">"_id"</span> : <span class="number">1</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="string">"name"</span> : <span class="string">"_id_"</span>,</span><br><span class="line">    <span class="string">"ns"</span> : <span class="string">"sample.NationalPension"</span></span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<h4 id="single-field-index"><a href="#single-field-index" class="headerlink" title="single field index"></a>single field index</h4><p>1개의 field 만 indexing 합니다. 적용 전, 미리 임의의 쿼리로 <code>executionTimeMillis</code> 측정해 봅시다.</p>
+<p>적용 전, 쿼리 실행 결과 상세 정보</p>
+<ul>
+<li>totalDocsExamined: 731815</li>
+<li>executionTimeMillis: 325ms</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.NationalPension.find(&#123; bzowrRgstNo: <span class="string">"105879"</span> &#125;).explain(<span class="string">'executionStats'</span>)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="string">"queryPlanner"</span> : &#123;</span><br><span class="line">		<span class="string">"plannerVersion"</span> : 1,</span><br><span class="line">		<span class="string">"namespace"</span> : <span class="string">"sample.NationalPension"</span>,</span><br><span class="line">		<span class="string">"indexFilterSet"</span> : <span class="literal">false</span>,</span><br><span class="line">		<span class="string">"parsedQuery"</span> : &#123;</span><br><span class="line">			<span class="string">"bzowrRgstNo"</span> : &#123;</span><br><span class="line">				<span class="string">"<span class="variable">$eq</span>"</span> : <span class="string">"105879"</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		<span class="string">"winningPlan"</span> : &#123;</span><br><span class="line">			<span class="string">"stage"</span> : <span class="string">"COLLSCAN"</span>,</span><br><span class="line">			<span class="string">"filter"</span> : &#123;</span><br><span class="line">				<span class="string">"bzowrRgstNo"</span> : &#123;</span><br><span class="line">					<span class="string">"<span class="variable">$eq</span>"</span> : <span class="string">"105879"</span></span><br><span class="line">				&#125;</span><br><span class="line">			&#125;,</span><br><span class="line">			<span class="string">"direction"</span> : <span class="string">"forward"</span></span><br><span class="line">		&#125;,</span><br><span class="line">		<span class="string">"rejectedPlans"</span> : [ ]</span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="string">"executionStats"</span> : &#123;</span><br><span class="line">		<span class="string">"executionSuccess"</span> : <span class="literal">true</span>,</span><br><span class="line">		<span class="string">"nReturned"</span> : 290,</span><br><span class="line">		<span class="string">"executionTimeMillis"</span> : 325,</span><br><span class="line">		<span class="string">"totalKeysExamined"</span> : 0,</span><br><span class="line">		<span class="string">"totalDocsExamined"</span> : 731815,</span><br><span class="line">		<span class="string">"executionStages"</span> : &#123; ... &#125;,</span><br><span class="line">			<span class="string">"nReturned"</span> : 290,</span><br><span class="line">			<span class="string">"executionTimeMillisEstimate"</span> : 278,</span><br><span class="line">			<span class="string">"works"</span> : 731817,</span><br><span class="line">			<span class="string">"advanced"</span> : 290,</span><br><span class="line">			<span class="string">"needTime"</span> : 731526,</span><br><span class="line">			<span class="string">"needYield"</span> : 0,</span><br><span class="line">			<span class="string">"saveState"</span> : 5727,</span><br><span class="line">			<span class="string">"restoreState"</span> : 5727,</span><br><span class="line">			<span class="string">"isEOF"</span> : 1,</span><br><span class="line">			<span class="string">"invalidates"</span> : 0,</span><br><span class="line">			<span class="string">"direction"</span> : <span class="string">"forward"</span>,</span><br><span class="line">			<span class="string">"docsExamined"</span> : 731815</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="string">"serverInfo"</span> : &#123;</span><br><span class="line">		<span class="string">"host"</span> : <span class="string">"zillinksui-MacBook-Pro.local"</span>,</span><br><span class="line">		<span class="string">"port"</span> : 27017,</span><br><span class="line">		<span class="string">"version"</span> : <span class="string">"4.0.5"</span>,</span><br><span class="line">		<span class="string">"gitVersion"</span> : <span class="string">"3739429dd92b92d1b0ab120911a23d50bf03c412"</span></span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="string">"ok"</span> : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Indexing 적용하기</p>
+<figure class="highlight ada"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">// <span class="number">1</span>은 내림차순, -<span class="number">1</span> 오름차순</span><br><span class="line">&gt; db.NationalPension.createIndex(&#123; bzowrRgstNo: <span class="number">1</span> &#125;);</span><br><span class="line">&#123;</span><br><span class="line">	<span class="string">"createdCollectionAutomatically"</span> : <span class="type">false</span>,</span><br><span class="line">	<span class="string">"numIndexesBefore"</span> : 1,</span><br><span class="line">	<span class="string">"numIndexesAfter"</span> : 2,</span><br><span class="line">	<span class="string">"ok"</span> : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>적용 후, 쿼리 실행 결과 상세 정보</p>
+<ul>
+<li>totalDocsExamined: 731815</li>
+<li>executionTimeMillis: 1ms</li>
+</ul>
+<figure class="highlight nsis"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.NationalPension.find(&#123; bzowrRgstNo: <span class="string">"105879"</span> &#125;).explain(<span class="string">'executionStats'</span>)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="string">"queryPlanner"</span> : &#123;</span><br><span class="line">		<span class="string">"plannerVersion"</span> : <span class="number">1</span>,</span><br><span class="line">		<span class="string">"namespace"</span> : <span class="string">"sample.NationalPension"</span>,</span><br><span class="line">		<span class="string">"indexFilterSet"</span> : <span class="literal">false</span>,</span><br><span class="line">		<span class="string">"parsedQuery"</span> : &#123;</span><br><span class="line">			<span class="string">"bzowrRgstNo"</span> : &#123;</span><br><span class="line">				<span class="string">"<span class="variable">$eq</span>"</span> : <span class="string">"105879"</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		<span class="string">"winningPlan"</span> : &#123;</span><br><span class="line">			<span class="string">"stage"</span> : <span class="string">"FETCH"</span>,</span><br><span class="line">			<span class="string">"inputStage"</span> : &#123;</span><br><span class="line">				<span class="string">"stage"</span> : <span class="string">"IXSCAN"</span>,</span><br><span class="line">				<span class="string">"keyPattern"</span> : &#123;</span><br><span class="line">					<span class="string">"bzowrRgstNo"</span> : <span class="number">1</span></span><br><span class="line">				&#125;,</span><br><span class="line">				<span class="string">"indexName"</span> : <span class="string">"bzowrRgstNo_1"</span>,</span><br><span class="line">				<span class="string">"isMultiKey"</span> : <span class="literal">false</span>,</span><br><span class="line">				<span class="string">"multiKeyPaths"</span> : &#123;</span><br><span class="line">					<span class="string">"bzowrRgstNo"</span> : [ ]</span><br><span class="line">				&#125;,</span><br><span class="line">				<span class="string">"isUnique"</span> : <span class="literal">false</span>,</span><br><span class="line">				<span class="string">"isSparse"</span> : <span class="literal">false</span>,</span><br><span class="line">				<span class="string">"isPartial"</span> : <span class="literal">false</span>,</span><br><span class="line">				<span class="string">"indexVersion"</span> : <span class="number">2</span>,</span><br><span class="line">				<span class="string">"direction"</span> : <span class="string">"forward"</span>,</span><br><span class="line">				<span class="string">"indexBounds"</span> : &#123;</span><br><span class="line">					<span class="string">"bzowrRgstNo"</span> : [</span><br><span class="line">						<span class="string">"[\"</span><span class="number">105879</span>\<span class="string">", \"</span><span class="number">105879</span>\<span class="string">"]"</span></span><br><span class="line">					]</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		<span class="string">"rejectedPlans"</span> : [ ]</span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="string">"executionStats"</span> : &#123;</span><br><span class="line">		<span class="string">"executionSuccess"</span> : <span class="literal">true</span>,</span><br><span class="line">		<span class="string">"nReturned"</span> : <span class="number">290</span>,</span><br><span class="line">		<span class="string">"executionTimeMillis"</span> : <span class="number">1</span>,</span><br><span class="line">		<span class="string">"totalKeysExamined"</span> : <span class="number">290</span>,</span><br><span class="line">		<span class="string">"totalDocsExamined"</span> : <span class="number">290</span>,</span><br><span class="line">		<span class="string">"executionStages"</span> : &#123; ... &#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="string">"serverInfo"</span> : &#123; ... &#125;,</span><br><span class="line">	<span class="string">"ok"</span> : <span class="number">1</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="compound-indexes"><a href="#compound-indexes" class="headerlink" title="compound indexes"></a>compound indexes</h4><p>2개 이상의 field 를 같이 indexing 합니다.</p>
+<h2 id="참고"><a href="#참고" class="headerlink" title="참고"></a>참고</h2><p><a href="https://docs.mongodb.com/manual/tutorial/create-queries-that-ensure-selectivity/" target="_blank" rel="noopener">Indexing Strategies - Selectivity</a></p>
+<template>
+
+</template>
+
+<script>
+
+</></script>
+            
+
+        </div>
+    </div>
+
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-link" href="/tags/NoSQL/">NoSQL</a> <a class="tag tag--primary tag--small t-link" href="/tags/mongoDB/">mongoDB</a> <a class="tag tag--primary tag--small t-link" href="/tags/query/">query</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2020/01/09/mongodb-query-tuning/compoundIndex/" data-tooltip="(no title)" aria-label="NEXT: (no title)">
+                        <span class="text-small icon-mr">(no title)</span>
+                        <!-- <span class="hide-xs hide-sm text-small icon-mr">(no title)</span> -->
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <!-- <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li> -->
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2020/01/31/mongodb-query-tuning/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2020/01/31/mongodb-query-tuning/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <!-- <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top"> -->
+            
+                <!-- <i class="fa fa-list" aria-hidden="true"></i> -->
+            <!-- </a> -->
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+                <div id="disqus_thread"></div>
+<script>
+
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://devhaks.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+            
+        
+    </div>
+</article>
+
+
+                
+<footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2020 이종학. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="5">
+                    <div class="post-bar-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2020/01/09/mongodb-query-tuning/compoundIndex/" data-tooltip="(no title)" aria-label="NEXT: (no title)">
+                        <span class="hide-xs hide-sm text-small icon-mr">(no title)</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2020/01/31/mongodb-query-tuning/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2020/01/31/mongodb-query-tuning/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="5">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2020/01/31/mongodb-query-tuning/">
+                        <i class="fab fa-facebook" aria-hidden="true"></i><span>Share on Facebook</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2020/01/31/mongodb-query-tuning/">
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">이종학</h4>
+        
+            <!-- <div id="about-card-bio"><p>author.bio</p>
+</div> -->
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>Software developer</p>
+
+            </div>
+        
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/images/cover.jpg');"></div>
+        <!--SCRIPTS-->
+<script src="/assets/js/script-gqfkjfdb6bghizjmdhv1eect2ihkmgoyo6be4xlkou3yljsi2ml5hdwn5chn.min.js"></script>
+<!--SCRIPTS END-->
+
+    
+        <script>
+             var disqus_config = function () {
+                 this.page.url = 'https://devhaks.github.io/2020/01/31/mongodb-query-tuning/';
+                 
+                    this.page.identifier = '2020/01/31/mongodb-query-tuning/';
+                 
+             };
+            (function() {
+                var d = document, s = d.createElement('script');
+                var disqus_shortname = 'devhaks';
+                s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+    
+
+
+
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
+    </body>
+</html>
