@@ -1,7 +1,7 @@
 ---
 title: slack 을 이용한 모니터링 알림 구축하기
 date: 2019-12-31 23:22:11
-# description: NoSQL의 대표적인 mongoDB 데이터 관계를 모델링하는 방법
+description: Slack 을 이용하여 서비스 운영시, 모니터링을 할 수 있는 방법
 tags:
  - slack
  - monitoring
@@ -92,7 +92,7 @@ class Slack {
   // 메시지를 전송할 webhook 주소
   static get Channels() {
     return {
-      devhaks: 'https://hooks.slack.com/services/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'
+      general: 'https://hooks.slack.com/services/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'
     };
   }
 
@@ -157,7 +157,7 @@ class Slack {
     }
 
     axios({
-      url: this.Channels.devhaks,
+      url: this.Channels.general,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
