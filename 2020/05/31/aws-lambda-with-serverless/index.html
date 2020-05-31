@@ -1,0 +1,711 @@
+
+<!DOCTYPE html>
+<html lang="en,default">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="Devhaks 개발 저장소">
+    <title>Serverless 프레임워크로 AWS Lambda 개발하기 - Devhaks 개발 저장소</title>
+    <meta name="author" content="이종학">
+    
+    
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"},"articleBody":"\n\n목차\n배경\n\nServerless 프레임워크\n\nServerless 개발환경 구축\n\n마무리\n\n참고\n\n\n배경회사의 서비스를 제공하기 위한 기능들을 개발하고 서버에 직접 배포하는 방식을 사용해왔습니다. 그러다보니 특정 기능이 한번에 많은 요청이 들어올 경우, 서버 부하가 발생하여 다운되는 일이 발생할 가능성이 높았습니다. 그렇다고 특정 기능 때문에 서버 자원을 업그레이드 하거나 서버 수를 늘리는 것 또한 유지비용을 감당하기에는 무리였습니다. (AWS 요금제가 꽤 비싼편입니다.)\n그래서 이러한 고민을 해결하기 위해 Serverless 어플리케이션 개발의 대표적인 AWS Lambda를 사용해보기로 했습니다.\n그러나 어떻게하면 Lambda 로 개발과 테스트 및 배포를 할 수 있을까? 라는 문제에 부딪혔습니다. 매번 AWS Lambda 브라우저 콘솔에 접속하여 개발하는 것은 너무 불편하여 비효율적입니다.\n그래서 저처럼 고민하는 분들을 위해 Serverless 프레임워크 를 사용하는 방법을 정리 해봤습니다.\nServerless 프레임워크아래 설명은 Serverless 깃허브 그대로 번역하였습니다.\n이벤트에 응답하여 실행되고 자동 확장되며 실행시 요금이 청구되는 마이크로 서비스로 구성된 애플리케이션을 빌드하십시오. 이를 통해 앱 유지 관리에 드는 총 비용을 낮추고 더 많은 로직을 더 빠르게 구축 할 수 있습니다.\n프레임 워크는 AWS Lambda, Google Cloud Functions 등과 같은 새로운 이벤트 중심 컴퓨팅 서비스를 사용합니다. 서버리스 아키텍처를 개발 및 배포하기위한 스캐 폴딩, 워크 플로 자동화 및 모범 사례를 제공하는 명령 줄 도구입니다. 또한 플러그인을 통해 완전히 확장 가능합니다.\n서버리스는 MIT 오픈 소스 프로젝트이며, 벤처 지원 전임 팀이 적극적으로 관리합니다.\n\n\n간단히 정리하면 AWS, 구글, 마이크로소프트 같은 클라우드 서비스에 마이크로 서비스 방식으로 원활한 개발을 할 수 있도록 지원하는 도구입니다. 현재 서비스 개발 추세는 오랫동안 모놀리식(monolithic) 방식에서 마이크로 서비스(micro services) 방식으로 점점 변화중입니다. 마이크로 서비스 방식으로 추세가 형성된 것은 클라우드 산업이 많이 발전했기 때문에 자체 서버를 구축하지 않아도 클라우드 컴퓨팅 자원을 빌려서 서비스를 구축 할 수 있게 된 것이죠.\nServerless 개발환경 구축개발환경 구축은 굉장히 간단합니다. 설치 명령어를 입력하고 AWS IAM(Identity and Access Management)를 통해 key를 발급 받습니다. 그리고 발급 받은 key를 이용하여 AWS lambda 에 함수를 배포하면 끝입니다. \n\n\n\n패키지 전역 설치하기\n1$ npm install -g serverless\n\n프로젝트 생성\n12$ serverless create --template aws-nodejs --path serverless-sample$ cd serverless-sample\n\n\n생성된 serverless-sample 디렉토리를 살펴봅시다.\nserverless.yml \nLambda 함수 및 APi Gateway 등 설정을 위한 파일\n\n\nhandler.js \nLambda 실행 함수 파일\n기본 함수 hello 정의됨  \n\n\n.gitignore \ngit 이 파일을 추적하지 않기 위한 설정 파일\n\n\n\n\n\n\n\n\nLambda 함수 로컬 테스트\n12345678910111213141516// handler.js'use strict';module.exports.hello = async event =&gt; &#123;  return &#123;    statusCode: 200,    body: JSON.stringify(      &#123;        message: 'Go Serverless v1.0! Your function executed successfully!',        input: event,      &#125;,      null,      2    ),  &#125;;&#125;;\n\n아래는 handler.js 파일에 정의된 hello 함수를 실행한 결과입니다. \n\n-d 옵션은 데이터를 전달 할 때 사용합니다. 예시로 함수 실행시 문자열 데이터인 ‘test’ 를 전달하였습니다. \n-d 옵션으로 전달한 데이터는 hello 함수의 event 인자로 접근 가능합니다.\n출력의 body.input에 전달한 ‘test’ 값이 출력된 것을 확인 할 수 있습니다.\n\n12345678$ serverless invoke local -f hello -d 'test'// Object 데이터를 전달하려면 'test' 대신 '&#123;key: \"value\"&#125;' 로 전달// ExperimentalWarning 실험적인 경고라니깐 무시하자.(node:10704) ExperimentalWarning: The fs.promises API is experimental&#123;  \"statusCode\": 200,  \"body\": \"&#123;\\n  \\\"message\\\": \\\"Go Serverless v1.0! Your function executed successfully!\\\",\\n  \\\"input\\\": \\\"test\\\"\\n&#125;\"&#125;\n\nAWS IAM(Identity and Access Management)로 부터 Key 발급 받기\nAWS Lambda 함수를 배포하기 전에 Key를 발급받아야 합니다. 왜냐하면 개발자가 수동으로 Lambda 함수를 배포해야하는 것을 Serverless 프레임워크가 대신 배포하기 위한 권한이 필요하기 때문입니다. \n\n\n1) IAM 페이지 접속하기 \n\nAWS 콘솔 접속 -&gt; 우측 상단 계정 이름 클릭 -&gt; 내 보안 자격 증명 클릭\n\n2) IAM 계정 추가하기\n\n좌측 메뉴에서 사용자 클릭 -&gt; 우측 영영 상단 사용자 추가 클릭\n계정 생성 step1\n\n\n계정 이름을 설정하세요. 저는 serverless로 미리 생성 했습니다.\n프로그래밍 방식 엑세스를 체크하세요.\n\n계정 생성 step2\n\n\n빠른 진행을 위해 모든 접근 권한을 가진 정책을 선택하세요.\n실제 서비스에는 모든 권한을 가진 정책 사용은 권장하지 않습니다.\n\n계정 생성 step5\n\n\n3,4 단계는 패스합니다.\n5단계에서 사용자의 엑세스 키 ID, 비밀 엑세스 키를 복사하거나 .csv 다운로드 합니다.\n\n\n\n3) serverless config 에 aws credentials 설정하기\n\nSetup with serverless config credentials command\n\n발급 받은 엑세스 키 ID와 비밀 엑세스 키를 아래 커맨드에서 변경할 부분을 찾아서 바꿔줍니다.\n12345$ serverless config credentials --provider aws --key xxxx --secret yyyy$ cat ~/.aws/credentials   [default]  aws_access_key_id=xxxx  aws_secret_access_key=yyyy\n\n\n\nserverless.yml 파일 수정\n설정 파일에 몇가지 사항을 추가합니다. memorySize, timeout 등의 설정 맨 아래 참고를 확인하세요.\n\nprovider.region - 배포할 리전\nprovider.memorySize - 배포할 리전\nprovider.timeout - Lambda 함수 최대 동작 시간(초 단위), 이 시간이 초과하면 에러 발생\n\n123456provider:  name: aws  runtime: nodejs12.x  region: ap-northeast-2  memorySize: 128  timeout: 10\n\nAWS Lambda 함수 배포하기\n배포에 소요되는 시간은 함수에 사용된 패키지 용량에 따라 다릅니다.배포가 끝나면 AWS Lambda 콘솔에 접근하면 함수가 생성된 것을 확인 할수 있습니다. 또한 Lambda 함수 배포를 위한 전용 S3 버킷이 생성된 것도 확인할 수 있습니다.\n1234567891011121314151617181920212223242526$ serverless deploy -v(node:22161) ExperimentalWarning: The fs.promises API is experimentalServerless: Packaging service.........Serverless: Stack update finished...Service Informationservice: serverless-samplestage: devregion: ap-northeast-2stack: serverless-sample-devresources: 6api keys:  Noneendpoints:  Nonefunctions:  hello: serverless-sample-dev-hellolayers:  None......Serverless: Run the \"serverless\" command to setup monitoring, troubleshooting and testing.\n\nNodejs 에서 Lambda 함수 호출하기\n먼저 aws-sdk 패키지를 다운로드 받습니다. \n1$ npm i aws-sdk\n\nLambda 함수를 호출하기 위한 코드 입니다.\n\nFunctionName: AWS Lambda 콘솔에 생성된 함수 이름 기준입니다.\nPayload: 전달한 데이터입니다. 항상 문자열이어야 합니다.\n\n123456789101112131415161718const AWS = require('aws-sdk');AWS.config.update(&#123;  accessKeyId: 'xxxx',  secretAccessKey: 'yyyy',  region: 'ap-northeast-2',&#125;);const result = await new AWS.Lambda()  .invoke(&#123;    FunctionName: 'serverless-sample-dev-hello' /* required */,    Payload: JSON.stringify(&#123;      key: 'Lambda Test value'    &#125;)  &#125;)  .promise();console.log(result);\n\n\n\n마무리여기까지 Serverless 프레임워크를 이용한 Lambda 개발 환경을 구축 해봤습니다.다음에는 실제 서비스에 배포하기 전에 테스트를 진행하기 위해 Dev, Prod 환경을 구분하는 포스팅을 작성할 예정입니다.\n참고\nServerless 깃허브\n\nAWS Lambda 요금\n\nAWS Lambda 제한\n\nAWS SDK를 사용하여 Lambda 함수를 호출할 때 재시도 및 시간 초과 문제가 발생할 경우 어떻게 해결합니까?\n\n","dateCreated":"2020-05-31T15:32:34+09:00","dateModified":"2020-06-01T01:08:07+09:00","datePublished":"2020-05-31T15:32:34+09:00","description":"이번 포스팅은 Serverless 프레임워크 로 AWS Lambda 를 쉽고 빠르게 개발할 수 있는 방법에 대해 살펴보겠습니다.","headline":"Serverless 프레임워크로 AWS Lambda 개발하기","image":["thumbnail.png","cover.jpg"],"mainEntityOfPage":{"@type":"WebPage","@id":"https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/"},"publisher":{"@type":"Organization","name":"이종학","sameAs":["https://github.com/devhaks/"],"image":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d","logo":{"@type":"ImageObject","url":"https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d"}},"url":"https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/","keywords":"AWS, serverless, nodejs","thumbnailUrl":"thumbnail.png"}</script>
+    
+    
+    
+        
+    
+
+    
+        <meta property="og:image" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/thumbnail.png"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/thumbnail.png" />
+    
+    
+    
+        <meta property="og:image" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/cover.jpg"/>
+        <meta class="swiftype" name="image" data-type="enum" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/cover.jpg" />
+    
+    
+    
+        <meta property="og:image" content="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=640"/>
+    
+    
+    
+
+    <meta name="description" content="이번 포스팅은 Serverless 프레임워크 로 AWS Lambda 를 쉽고 빠르게 개발할 수 있는 방법에 대해 살펴보겠습니다.">
+<meta name="keywords" content="AWS,serverless,nodejs">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="Serverless 프레임워크로 AWS Lambda 개발하기">
+<meta property="og:url" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/index.html">
+<meta property="og:site_name" content="Devhaks 개발 저장소">
+<meta property="og:description" content="이번 포스팅은 Serverless 프레임워크 로 AWS Lambda 를 쉽고 빠르게 개발할 수 있는 방법에 대해 살펴보겠습니다.">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/serverless-iam1.png">
+<meta property="og:image" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/serverless-iam2.png">
+<meta property="og:image" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/serverless-iam3.png">
+<meta property="og:updated_time" content="2020-05-31T16:08:07.311Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Serverless 프레임워크로 AWS Lambda 개발하기">
+<meta name="twitter:description" content="이번 포스팅은 Serverless 프레임워크 로 AWS Lambda 를 쉽고 빠르게 개발할 수 있는 방법에 대해 살펴보겠습니다.">
+<meta name="twitter:image" content="https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/serverless-iam1.png">
+
+
+    <!--STYLES-->
+    <link rel="stylesheet" href="/assets/css/style-dig2yh02rpgcdxsbsfha8ujj65grwfvm3xbp1gpa6w8uj8k150ymhv97ed5p.min.css">
+    <!--STYLES END-->
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-135461398-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-135461398-1');
+    </script>
+
+
+    
+</head>
+
+    <body>
+        
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+    
+
+<header id="header" data-behavior="5">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a class="header-title-link" href="/ ">Devhaks 개발 저장소</a>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+    
+
+
+    
+        
+            <a  class="header-right-picture "
+                href="/me">
+        
+        
+            <img class="header-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=90" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+
+<style>
+    /* The progress container (grey background) */
+    .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #ccc;
+        
+    }
+    /* The progress bar (scroll indicator) */
+    .progress-bar {
+        height: 10px;
+        background: #ff5151;
+        width: 0%;
+    }
+</style>
+
+<script>
+    // When the user scrolls the page, execute myFunction 
+    window.onscroll = function() {myFunction()};
+
+    function myFunction() {
+        var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        var scrolled = (winScroll / height) * 100;
+        document.getElementById("myBar").style.width = scrolled + "%";
+    }
+</script>
+            <!-- Define author's picture -->
+
+
+    
+
+<nav id="sidebar" data-behavior="5">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a href="/#about">
+                    <img class="sidebar-profile-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">이종학</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>author.bio</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/ "
+                            
+                            title="Home"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-categories"
+                            
+                            title="Categories"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-tags"
+                            
+                            title="Tags"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/all-archives"
+                            
+                            title="Archives"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link open-algolia-search"
+                             href="#search"
+                            
+                            title="Search"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-search" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Search</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link "
+                             href="/me"
+                            
+                            title="About"
+                        >
+                    
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a  class="sidebar-button-link " href="https://github.com/devhaks/" target="_blank" rel="noopener" title="GitHub">
+                    
+                        <i class="sidebar-button-icon fab fa-github" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">GitHub</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+        <div class="post-header-cover
+                    text-left
+                    post-header-cover--full"
+             style="background-image:url('/2020/05/31/aws-lambda-with-serverless/cover.jpg');"
+             data-behavior="5">
+            
+                <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            Serverless 프레임워크로 AWS Lambda 개발하기
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2020-05-31T15:32:34+09:00">
+	
+		    May 31, 2020
+    	
+    </time>
+    
+</div>
+
+    
+</div>
+
+            
+        </div>
+
+            <div id="main" data-behavior="5"
+                 class="hasCover
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <!-- excerpt -->
+
+<h2 id="목차"><a href="#목차" class="headerlink" title="목차"></a>목차</h2><ul>
+<li><p><a href="#배경">배경</a></p>
+</li>
+<li><p><a href="#Serverless-프레임워크">Serverless 프레임워크</a></p>
+</li>
+<li><p><a href="#Serverless-개발환경-구축">Serverless 개발환경 구축</a></p>
+</li>
+<li><p><a href="#마무리">마무리</a></p>
+</li>
+<li><p><a href="#참고">참고</a></p>
+</li>
+</ul>
+<h2 id="배경"><a href="#배경" class="headerlink" title="배경"></a>배경</h2><p>회사의 서비스를 제공하기 위한 기능들을 개발하고 서버에 직접 배포하는 방식을 사용해왔습니다. 그러다보니 특정 기능이 한번에 많은 요청이 들어올 경우, 서버 부하가 발생하여 다운되는 일이 발생할 가능성이 높았습니다. 그렇다고 특정 기능 때문에 서버 자원을 업그레이드 하거나 서버 수를 늘리는 것 또한 유지비용을 감당하기에는 무리였습니다. (AWS 요금제가 꽤 비싼편입니다.)</p>
+<p>그래서 이러한 고민을 해결하기 위해 Serverless 어플리케이션 개발의 대표적인 <a href="https://docs.aws.amazon.com/ko_kr/lambda/latest/dg/welcome.html" target="_blank" rel="noopener">AWS Lambda</a>를 사용해보기로 했습니다.</p>
+<p>그러나 <code>어떻게하면 Lambda 로 개발과 테스트 및 배포를 할 수 있을까?</code> 라는 문제에 부딪혔습니다. 매번 AWS Lambda 브라우저 콘솔에 접속하여 개발하는 것은 너무 불편하여 비효율적입니다.</p>
+<p>그래서 저처럼 고민하는 분들을 위해 <a href="https://www.serverless.com/" target="_blank" rel="noopener">Serverless 프레임워크</a> 를 사용하는 방법을 정리 해봤습니다.</p>
+<h2 id="Serverless-프레임워크"><a href="#Serverless-프레임워크" class="headerlink" title="Serverless 프레임워크"></a>Serverless 프레임워크</h2><p>아래 설명은 <a href="https://github.com/serverless/serverless" target="_blank" rel="noopener">Serverless 깃허브</a> 그대로 번역하였습니다.</p>
+<p>이벤트에 응답하여 실행되고 자동 확장되며 <u>실행시 요금이 청구되는 <span style="color:red">마이크로 서비스</span>로 구성된 애플리케이션</u>을 빌드하십시오. 이를 통해 앱 유지 관리에 드는 총 비용을 낮추고 더 많은 로직을 더 빠르게 구축 할 수 있습니다.</p>
+<p>프레임 워크는 AWS Lambda, Google Cloud Functions 등과 같은 새로운 이벤트 중심 컴퓨팅 서비스를 사용합니다. 서버리스 아키텍처를 개발 및 배포하기위한 스캐 폴딩, 워크 플로 자동화 및 모범 사례를 제공하는 명령 줄 도구입니다. 또한 플러그인을 통해 완전히 확장 가능합니다.</p>
+<div class="alert info"><p>서버리스는 MIT 오픈 소스 프로젝트이며, 벤처 지원 전임 팀이 적극적으로 관리합니다.</p>
+</div>
+
+<p>간단히 정리하면 AWS, 구글, 마이크로소프트 같은 클라우드 서비스에 <span style="color:red">마이크로 서비스</span> 방식으로 원활한 개발을 할 수 있도록 지원하는 도구입니다. 현재 서비스 개발 추세는 오랫동안 모놀리식(monolithic) 방식에서 <span style="color:red">마이크로 서비스(micro services)</span> 방식으로 점점 변화중입니다. 마이크로 서비스 방식으로 추세가 형성된 것은 클라우드 산업이 많이 발전했기 때문에 자체 서버를 구축하지 않아도 클라우드 컴퓨팅 자원을 빌려서 서비스를 구축 할 수 있게 된 것이죠.</p>
+<h2 id="Serverless-개발환경-구축"><a href="#Serverless-개발환경-구축" class="headerlink" title="Serverless 개발환경 구축"></a>Serverless 개발환경 구축</h2><p>개발환경 구축은 굉장히 간단합니다. 설치 명령어를 입력하고 AWS IAM(Identity and Access Management)를 통해 key를 발급 받습니다. 그리고 발급 받은 key를 이용하여 AWS lambda 에 함수를 배포하면 끝입니다. </p>
+<br>
+
+<ol>
+<li><p>패키지 전역 설치하기</p>
+<figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm <span class="keyword">install</span> -g serverless</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>프로젝트 생성</p>
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ serverless create <span class="params">--template</span> aws-nodejs <span class="params">--path</span> serverless-sample</span><br><span class="line">$ <span class="keyword">cd</span> serverless-sample</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>생성된 <code>serverless-sample</code> 디렉토리를 살펴봅시다.<ul>
+<li>serverless.yml <ul>
+<li>Lambda 함수 및 APi Gateway 등 설정을 위한 파일</li>
+</ul>
+</li>
+<li>handler.js <ul>
+<li>Lambda 실행 함수 파일</li>
+<li>기본 함수 <code>hello</code> 정의됨  </li>
+</ul>
+</li>
+<li>.gitignore <ul>
+<li>git 이 파일을 추적하지 않기 위한 설정 파일</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<ol start="3">
+<li><p>Lambda 함수 로컬 테스트</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// handler.js</span></span><br><span class="line"><span class="meta">'use strict'</span>;</span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports.hello = <span class="keyword">async</span> event =&gt; &#123;</span><br><span class="line">  <span class="keyword">return</span> &#123;</span><br><span class="line">    statusCode: <span class="number">200</span>,</span><br><span class="line">    body: <span class="built_in">JSON</span>.stringify(</span><br><span class="line">      &#123;</span><br><span class="line">        message: <span class="string">'Go Serverless v1.0! Your function executed successfully!'</span>,</span><br><span class="line">        input: event,</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="literal">null</span>,</span><br><span class="line">      <span class="number">2</span></span><br><span class="line">    ),</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>아래는 handler.js 파일에 정의된 <code>hello</code> 함수를 실행한 결과입니다. </p>
+<ul>
+<li><code>-d</code> 옵션은 데이터를 전달 할 때 사용합니다. 예시로 함수 실행시 문자열 데이터인 ‘test’ 를 전달하였습니다. </li>
+<li><code>-d</code> 옵션으로 전달한 데이터는 hello 함수의 <code>event</code> 인자로 접근 가능합니다.</li>
+<li>출력의 <code>body.input</code>에 전달한 ‘test’ 값이 출력된 것을 확인 할 수 있습니다.</li>
+</ul>
+<figure class="highlight stata"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ serverless invoke <span class="keyword">local</span> -f hello -<span class="keyword">d</span> '<span class="keyword">test</span>'</span><br><span class="line"><span class="comment">// Object 데이터를 전달하려면 'test' 대신 '&#123;key: "value"&#125;' 로 전달</span></span><br><span class="line"><span class="comment">// ExperimentalWarning 실험적인 경고라니깐 무시하자.</span></span><br><span class="line">(node:10704) ExperimentalWarning: The fs.promises API is experimental</span><br><span class="line">&#123;</span><br><span class="line">  <span class="string">"statusCode"</span>: 200,</span><br><span class="line">  <span class="string">"body"</span>: <span class="string">"&#123;\n  \"</span>message\<span class="string">": \"</span>Go Serverless v1.0! Your function executed successfully!\<span class="string">",\n  \"</span><span class="keyword">input</span>\<span class="string">": \"</span><span class="keyword">test</span>\<span class="string">"\n&#125;"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>AWS IAM(Identity and Access Management)로 부터 Key 발급 받기</p>
+<p>AWS Lambda 함수를 배포하기 전에 Key를 발급받아야 합니다. 왜냐하면 개발자가 수동으로 Lambda 함수를 배포해야하는 것을 Serverless 프레임워크가 대신 배포하기 위한 권한이 필요하기 때문입니다. </p>
+<br>
+
+<p>1) IAM 페이지 접속하기 </p>
+<ul>
+<li>AWS 콘솔 접속 -&gt; 우측 상단 계정 이름 클릭 -&gt; 내 보안 자격 증명 클릭</li>
+</ul>
+<p>2) IAM 계정 추가하기</p>
+<ul>
+<li><p>좌측 메뉴에서 <code>사용자</code> 클릭 -&gt; 우측 영영 상단 <code>사용자 추가</code> 클릭</p>
+<div class="figure center" style="width:;"><a class="fancybox" href="serverless-iam1.png" title="계정 생성 step1" data-caption="계정 생성 step1" data-fancybox="default"><img class="fig-img" src="serverless-iam1.png" alt="계정 생성 step1"></a><span class="caption">계정 생성 step1</span></div><div style="clear:both;"></div>
+
+<ul>
+<li>계정 이름을 설정하세요. 저는 <code>serverless</code>로 미리 생성 했습니다.</li>
+<li>프로그래밍 방식 엑세스를 체크하세요.</li>
+</ul>
+<div class="figure center" style="width:;"><a class="fancybox" href="serverless-iam2.png" title="계정 생성 step2" data-caption="계정 생성 step2" data-fancybox="default"><img class="fig-img" src="serverless-iam2.png" alt="계정 생성 step2"></a><span class="caption">계정 생성 step2</span></div><div style="clear:both;"></div>
+
+<ul>
+<li>빠른 진행을 위해 모든 접근 권한을 가진 정책을 선택하세요.</li>
+<li>실제 서비스에는 모든 권한을 가진 정책 사용은 권장하지 않습니다.</li>
+</ul>
+<div class="figure center" style="width:;"><a class="fancybox" href="serverless-iam3.png" title="계정 생성 step5" data-caption="계정 생성 step5" data-fancybox="default"><img class="fig-img" src="serverless-iam3.png" alt="계정 생성 step5"></a><span class="caption">계정 생성 step5</span></div><div style="clear:both;"></div>
+
+<ul>
+<li>3,4 단계는 패스합니다.</li>
+<li>5단계에서 사용자의 <code>엑세스 키 ID</code>, <code>비밀 엑세스 키</code>를 복사하거나 .csv 다운로드 합니다.</li>
+</ul>
+</li>
+</ul>
+<p>3) serverless config 에 aws credentials 설정하기</p>
+<ul>
+<li><p><a href="https://www.serverless.com/framework/docs/providers/aws/guide/credentials#setup-with-serverless-config-credentials-command" target="_blank" rel="noopener">Setup with serverless config credentials command</a></p>
+</li>
+<li><p>발급 받은 <code>엑세스 키 ID</code>와 <code>비밀 엑세스 키</code>를 아래 커맨드에서 변경할 부분을 찾아서 바꿔줍니다.</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ serverless<span class="built_in"> config </span>credentials --provider aws --key xxxx --secret yyyy</span><br><span class="line">$ cat ~/.aws/credentials </span><br><span class="line">  [default]</span><br><span class="line">  <span class="attribute">aws_access_key_id</span>=xxxx</span><br><span class="line">  <span class="attribute">aws_secret_access_key</span>=yyyy</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>serverless.yml 파일 수정</p>
+<p>설정 파일에 몇가지 사항을 추가합니다. memorySize, timeout 등의 설정 맨 아래 <a href="#참고">참고</a>를 확인하세요.</p>
+<ul>
+<li>provider.region - 배포할 리전</li>
+<li>provider.memorySize - 배포할 리전</li>
+<li>provider.timeout - Lambda 함수 최대 동작 시간(초 단위), 이 시간이 초과하면 에러 발생</li>
+</ul>
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">provider:</span></span><br><span class="line"><span class="symbol">  name:</span> aws</span><br><span class="line"><span class="symbol">  runtime:</span> nodejs12.x</span><br><span class="line"><span class="symbol">  region:</span> ap-northeast<span class="number">-2</span></span><br><span class="line"><span class="symbol">  memorySize:</span> <span class="number">128</span></span><br><span class="line"><span class="symbol">  timeout:</span> <span class="number">10</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>AWS Lambda 함수 배포하기</p>
+<p>배포에 소요되는 시간은 함수에 사용된 패키지 용량에 따라 다릅니다.<br>배포가 끝나면 AWS Lambda 콘솔에 접근하면 함수가 생성된 것을 확인 할수 있습니다. 또한 Lambda 함수 배포를 위한 전용 S3 버킷이 생성된 것도 확인할 수 있습니다.</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">$ serverless deploy -v</span><br><span class="line"></span><br><span class="line">(node:22161) ExperimentalWarning: The fs.promises API is experimental</span><br><span class="line">Serverless: Packaging service<span class="built_in">..</span>.</span><br><span class="line"><span class="built_in">..</span>.</span><br><span class="line"><span class="built_in">..</span>.</span><br><span class="line">Serverless: Stack update finished<span class="built_in">..</span>.</span><br><span class="line">Service Information</span><br><span class="line">service: serverless-sample</span><br><span class="line">stage: dev</span><br><span class="line">region: ap-northeast-2</span><br><span class="line">stack: serverless-sample-dev</span><br><span class="line">resources: 6</span><br><span class="line">api keys:</span><br><span class="line">  None</span><br><span class="line">endpoints:</span><br><span class="line">  None</span><br><span class="line">functions:</span><br><span class="line">  hello: serverless-sample-dev-hello</span><br><span class="line">layers:</span><br><span class="line">  None</span><br><span class="line"></span><br><span class="line"><span class="built_in">..</span>.</span><br><span class="line"><span class="built_in">..</span>.</span><br><span class="line"></span><br><span class="line">Serverless: <span class="builtin-name">Run</span> the <span class="string">"serverless"</span> command <span class="keyword">to</span> setup monitoring, troubleshooting <span class="keyword">and</span> testing.</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Nodejs 에서 Lambda 함수 호출하기</p>
+<p>먼저 aws-sdk 패키지를 다운로드 받습니다. </p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm <span class="selector-tag">i</span> aws-sdk</span><br></pre></td></tr></table></figure>
+
+<p>Lambda 함수를 호출하기 위한 코드 입니다.</p>
+<ul>
+<li>FunctionName: AWS Lambda 콘솔에 생성된 함수 이름 기준입니다.</li>
+<li>Payload: 전달한 데이터입니다. 항상 문자열이어야 합니다.</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> AWS = <span class="built_in">require</span>(<span class="string">'aws-sdk'</span>);</span><br><span class="line"></span><br><span class="line">AWS.config.update(&#123;</span><br><span class="line">  accessKeyId: <span class="string">'xxxx'</span>,</span><br><span class="line">  secretAccessKey: <span class="string">'yyyy'</span>,</span><br><span class="line">  region: <span class="string">'ap-northeast-2'</span>,</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="keyword">new</span> AWS.Lambda()</span><br><span class="line">  .invoke(&#123;</span><br><span class="line">    FunctionName: <span class="string">'serverless-sample-dev-hello'</span> <span class="comment">/* required */</span>,</span><br><span class="line">    Payload: <span class="built_in">JSON</span>.stringify(&#123;</span><br><span class="line">      key: <span class="string">'Lambda Test value'</span></span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;)</span><br><span class="line">  .promise();</span><br><span class="line"></span><br><span class="line"><span class="built_in">console</span>.log(result);</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<h2 id="마무리"><a href="#마무리" class="headerlink" title="마무리"></a>마무리</h2><p>여기까지 Serverless 프레임워크를 이용한 Lambda 개발 환경을 구축 해봤습니다.<br>다음에는 실제 서비스에 배포하기 전에 테스트를 진행하기 위해 Dev, Prod 환경을 구분하는 포스팅을 작성할 예정입니다.</p>
+<h2 id="참고"><a href="#참고" class="headerlink" title="참고"></a>참고</h2><ul>
+<li><p><a href="https://github.com/serverless/serverless" target="_blank" rel="noopener">Serverless 깃허브</a></p>
+</li>
+<li><p><a href="https://aws.amazon.com/ko/lambda/pricing/" target="_blank" rel="noopener">AWS Lambda 요금</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/ko_kr/lambda/latest/dg/gettingstarted-limits.html" target="_blank" rel="noopener">AWS Lambda 제한</a></p>
+</li>
+<li><p><a href="https://aws.amazon.com/ko/premiumsupport/knowledge-center/lambda-function-retry-timeout-sdk/" target="_blank" rel="noopener">AWS SDK를 사용하여 Lambda 함수를 호출할 때 재시도 및 시간 초과 문제가 발생할 경우 어떻게 해결합니까?</a></p>
+</li>
+</ul>
+            
+
+        </div>
+    </div>
+
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-link" href="/tags/AWS/">AWS</a> <a class="tag tag--primary tag--small t-link" href="/tags/nodejs/">nodejs</a> <a class="tag tag--primary tag--small t-link" href="/tags/serverless/">serverless</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2020/01/31/mongodb-query-tuning/" data-tooltip="MongoDB Query 튜닝" aria-label="NEXT: MongoDB Query 튜닝">
+                        <span class="text-small icon-mr">MongoDB Query 튜닝</span>
+                        <!-- <span class="hide-xs hide-sm text-small icon-mr">MongoDB Query 튜닝</span> -->
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <!-- <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li> -->
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+        <li class="post-action">
+            
+                <!-- <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top"> -->
+            
+                <!-- <i class="fa fa-list" aria-hidden="true"></i> -->
+            <!-- </a> -->
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+                <div id="disqus_thread"></div>
+<script>
+
+/**
+*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://devhaks.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+            
+        
+    </div>
+</article>
+
+
+                
+<footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2020 이종학. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="5">
+                    <div class="post-bar-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    <!-- <a class="post-action-btn btn btn--disabled">
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span> -->
+                
+                </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                    <a class="post-action-btn btn btn--default tooltip--top" href="/2020/01/31/mongodb-query-tuning/" data-tooltip="MongoDB Query 튜닝" aria-label="NEXT: MongoDB Query 튜닝">
+                        <span class="hide-xs hide-sm text-small icon-mr">MongoDB Query 튜닝</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a class="post-action-btn btn btn--default btn-open-shareoptions" href="#btn-open-shareoptions" aria-label="Share this post">
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/" title="Share on Facebook">
+                    <i class="fab fa-facebook" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a class="post-action-btn btn btn--default" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/" title="Share on Twitter">
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+                <li class="post-action">
+                    <a class="post-action-btn btn btn--default" href="#disqus_thread">
+                        <i class="fa fa-comment"></i>
+                    </a>
+                </li>
+            
+        
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="5">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://www.facebook.com/sharer/sharer.php?u=https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/">
+                        <i class="fab fa-facebook" aria-hidden="true"></i><span>Share on Facebook</span>
+                    </a>
+                </li>
+            
+                
+                
+                <li class="share-option">
+                    <a class="share-option-btn" target="new" href="https://twitter.com/intent/tweet?text=https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/">
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="https://www.gravatar.com/avatar/dfca80a65a05d05bf0d417a6ca99a57d?s=110" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">이종학</h4>
+        
+            <!-- <div id="about-card-bio"><p>author.bio</p>
+</div> -->
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>Software developer</p>
+
+            </div>
+        
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/images/cover.jpg');"></div>
+        <!--SCRIPTS-->
+<script src="/assets/js/script-gqfkjfdb6bghizjmdhv1eect2ihkmgoyo6be4xlkou3yljsi2ml5hdwn5chn.min.js"></script>
+<!--SCRIPTS END-->
+
+    
+        <script>
+             var disqus_config = function () {
+                 this.page.url = 'https://devhaks.github.io/2020/05/31/aws-lambda-with-serverless/';
+                 
+                    this.page.identifier = '2020/05/31/aws-lambda-with-serverless/';
+                 
+             };
+            (function() {
+                var d = document, s = d.createElement('script');
+                var disqus_shortname = 'devhaks';
+                s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+    
+
+
+
+
+        <script src="https://unpkg.com/vanilla-back-to-top@7.2.0/dist/vanilla-back-to-top.min.js"></script>
+        <script>
+            addBackToTop({
+                cornerOffset: 70,
+                scrollDuration : 250,
+                diameter: 56,
+                backgroundColor: 'rgb(255, 82, 82)',
+                textColor: '#fff'
+            })
+        </script> 
+    </body>
+</html>
